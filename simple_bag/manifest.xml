@@ -1,0 +1,16 @@
+<package>
+  <description brief="simple_bag">
+
+     simple_bag
+
+  </description>
+  <author>Steven Jorgensen</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/simple_bag</url>
+  <depend package="rospy"/>
+  <depend package="rosbag"/>
+
+</package>
+
+

@@ -1,0 +1,2 @@
+- setup-file:
+    local-name: /home/stevenjj/catkin_ws/src/simple_trajectory/build/devel/setup.sh
