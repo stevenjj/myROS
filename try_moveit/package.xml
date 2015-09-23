@@ -46,6 +46,8 @@
   <run_depend>rospy</run_depend>
 
 
+
+  <build_depend>rosbag</build_depend>
   <build_depend>pluginlib</build_depend>
   <build_depend>moveit_core</build_depend>
   <build_depend>moveit_ros_planning_interface</build_depend>
@@ -59,7 +61,7 @@
   <run_depend>moveit_ros_planning_interface</run_depend>
   <run_depend>moveit_ros_perception</run_depend>
   <run_depend>interactive_markers</run_depend>
-
+  <run_depend>rosbag</run_depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>

@@ -11,6 +11,7 @@ find_package(catkin REQUIRED COMPONENTS
   moveit_ros_planning 
   moveit_ros_planning_interface 
   pluginlib cmake_modules
+  rosbag
 )
 
 find_package(Boost REQUIRED system filesystem date_time thread)
@@ -19,6 +20,8 @@ catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES pr2_moveit_tutorials
   CATKIN_DEPENDS 
+    rosbag
+    roscpp
     moveit_core
     moveit_ros_planning_interface
     interactive_markers
@@ -38,6 +41,10 @@ link_directories(${catkin_LIBRARY_DIRS})
 add_executable(try_move_pr2_right_arm src/try_move_pr2_right_arm.cpp)
 target_link_libraries(try_move_pr2_right_arm ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 install(TARGETS try_move_pr2_right_arm DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+
+add_executable(moveit_rosbag src/moveit_rosbag.cpp)
+target_link_libraries(moveit_rosbag ${catkin_LIBRARIES} ${Boost_LIBRARIES})
+install(TARGETS moveit_rosbag DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
 
 #add_subdirectory(kinematics)
