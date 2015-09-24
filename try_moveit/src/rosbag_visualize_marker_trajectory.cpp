@@ -107,10 +107,10 @@ void pub_recorded_marker(ros::Publisher &marker_pub, visualization_msgs::Marker:
     marker.scale.z = rosbag_marker->scale.z; //0.5;
 
     // Set the color -- be sure to set alpha to something non-zero!
-    marker.color.r = 0.0f;//rosbag_marker->color.r; //0.0f;
-    marker.color.g = 0.5f;//rosbag_marker->color.g; //1.0f;
-    marker.color.b = 0.5f;//rosbag_marker->color.b; //0.0f;
-    marker.color.a = 1.0 * ( (double)(total_markers - index) / (double)total_markers / 1.15)  ;//rosbag_marker->color.a; //1.0;
+    marker.color.r = 1.0 *  ( (double)(total_markers - index) / (double)total_markers);//rosbag_marker->color.r; //0.0f;
+    marker.color.g = 1.0f * ( (double)index / (double)total_markers); //1.0f;//rosbag_marker->color.g; //1.0f;
+    marker.color.b = 0.0f;//rosbag_marker->color.b; //0.0f;
+    marker.color.a = 1.0f;//1.0 * ( (double)(total_markers - index) / (double)total_markers); //rosbag_marker->color.a; //1.0;
 
     marker.lifetime = ros::Duration();
 
@@ -123,7 +123,7 @@ void pub_recorded_marker(ros::Publisher &marker_pub, visualization_msgs::Marker:
         break;
       }
       ROS_WARN_ONCE("Please create a subscriber to the marker");
-      sleep(1);
+      sleep(1.0);
     }
     marker_pub.publish(marker);
 
@@ -172,7 +172,7 @@ int main(int argc, char **argv){
         pub_recorded_marker(rvizMarkerPub, p, marker_index, total_markers);
 
         marker_index++;
-        sleep(0.5);
+        //sleep(1.0);
         std::cout << total_markers << std::endl;
     }
     ROS_INFO("Closing bag");
