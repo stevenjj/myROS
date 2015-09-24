@@ -21,9 +21,10 @@
 #define foreach BOOST_FOREACH
 
 
+// Create global to make my life easier
 std::vector<geometry_msgs::Pose> waypoints;
 
-
+// Publish recorded markers but also push waypoint trajectories.
 void pub_recorded_marker(ros::Publisher &marker_pub, visualization_msgs::Marker::ConstPtr &rosbag_marker, 
                          int index, int total_markers, tf::Transform &translate_to_main, tf::Transform &rotate_to_main ){
 
@@ -35,8 +36,7 @@ void pub_recorded_marker(ros::Publisher &marker_pub, visualization_msgs::Marker:
                                        rosbag_marker->pose.orientation.z,
                                        rosbag_marker->pose.orientation.w);
 
-
-    //marker_position = marker_position - offset_vector; //transform_to_main * 
+    // Perform tf transformation.
     marker_position = translate_to_main * marker_position; 
     marker_orientation = rotate_to_main * marker_orientation;
 
@@ -73,11 +73,13 @@ void pub_recorded_marker(ros::Publisher &marker_pub, visualization_msgs::Marker:
     marker.scale.z = rosbag_marker->scale.z; //0.5;
 
     // Set the color -- be sure to set alpha to something non-zero!
+    // use index/total_markers percentage as a way to fade from red to green.
     marker.color.r = 1.0 *  ( (double)(total_markers - index) / (double)total_markers);//rosbag_marker->color.r; //0.0f;
     marker.color.g = 1.0f * ( (double)index / (double)total_markers); //1.0f;//rosbag_marker->color.g; //1.0f;
     marker.color.b = 0.0f;//rosbag_marker->color.b; //0.0f;
     marker.color.a = 1.0f;//1.0 * ( (double)(total_markers - index) / (double)total_markers); //rosbag_marker->color.a; //1.0;
 
+    // Make it last forever. We don't need to keep publishing it.
     marker.lifetime = ros::Duration();
 
     // Publish the marker
@@ -92,6 +94,7 @@ void pub_recorded_marker(ros::Publisher &marker_pub, visualization_msgs::Marker:
       sleep(1.0);
     }
 
+    // Push marker 6DoF Pose to the waypoints vector.
     geometry_msgs::Pose target_pose;
     target_pose.position.x = marker_position.getX();
     target_pose.position.y = marker_position.getY();
@@ -110,20 +113,17 @@ void pub_recorded_marker(ros::Publisher &marker_pub, visualization_msgs::Marker:
 
 
 int main(int argc, char **argv){    
-    ros::init (argc, argv, "trajectory_viz_execution");
-    ros::NodeHandle n;
-    ros::AsyncSpinner spinner(1);
-    spinner.start();
+  ros::init (argc, argv, "trajectory_viz_execution");
+  ros::NodeHandle n;
+  ros::AsyncSpinner spinner(1);
+  spinner.start();
 
-    ros::Publisher rvizMarkerPub; 
-    rvizMarkerPub = n.advertise < visualization_msgs::Marker > ("visualization_marker", 1);
+  ros::Publisher rvizMarkerPub; 
+  rvizMarkerPub = n.advertise < visualization_msgs::Marker > ("visualization_marker", 1);
 
 
 
   moveit::planning_interface::MoveGroup group("right_arm");
-
-  // We will use the :planning_scene_interface:`PlanningSceneInterface`
-  // class to deal directly with the world.
   moveit::planning_interface::PlanningSceneInterface planning_scene_interface;  
 
   // (Optional) Create a publisher for visualizing plans in Rviz.
@@ -138,6 +138,8 @@ int main(int argc, char **argv){
   // We can also print the name of the end-effector link for this group.
   ROS_INFO("Reference frame: %s", group.getEndEffectorLink().c_str());
 
+  
+  // Move the robot to a known starting position
   robot_state::RobotState start_state(*group.getCurrentState());
   geometry_msgs::Pose start_pose2;
   start_pose2.orientation.x = 1.0;
@@ -213,6 +215,7 @@ int main(int argc, char **argv){
         total_markers++; // count total number of markers in the rosbag
     }        
 
+    // Fancy Quaternion math. This took forever. p' = p_a^-1 * p2 gives the rotation needed to go from p_a to p2.
     axis_rotation = first_marker_axis.inverse() * main_axis; // Find axis of rotation
     tf::Transform transform_to_main_axis(tf::Quaternion(0,0,0,1), r_gripper_position - first_marker_vector_offset); // Create transform
     tf::Transform rotate_to_main_axis(axis_rotation, tf::Vector3(0,0,0)); // Create transform
@@ -223,15 +226,8 @@ int main(int argc, char **argv){
         ROS_INFO("Inside bag!");
         //geometry_msgs::Pose::ConstPtr p = m.instantiate<geometry_msgs::Pose>();
         visualization_msgs::Marker::ConstPtr p = m.instantiate<visualization_msgs::Marker>();
-        std::cout << m.getDataType() << std::endl; // Identify topic type
-        std::cout << p->id << std::endl;
-        std::cout << p->pose.position.x << std::endl;
-        std::cout << p->pose.position.y << std::endl;
-        std::cout << p->pose.position.z << std::endl;
-        std::cout << p->pose.orientation.x << std::endl;
-        std::cout << p->pose.orientation.y << std::endl;
-        std::cout << p->pose.orientation.z << std::endl;
-        std::cout << p->pose.orientation.w << std::endl;
+        //std::cout << m.getDataType() << std::endl; // Identify topic type
+        //std::cout << p->pose.position.x << std::endl;
 
         pub_recorded_marker(rvizMarkerPub, p, marker_index, total_markers, transform_to_main_axis, rotate_to_main_axis);
         marker_index++;
@@ -251,21 +247,6 @@ int main(int argc, char **argv){
   // from the new start state above.  The initial pose (start state) does not
   // need to be added to the waypoint list.
 
-
-  /*
-  geometry_msgs::Pose target_pose3 = start_pose2;
-  target_pose3.position.x += 0.2;
-  target_pose3.position.z += 0.2;
-  waypoints.push_back(target_pose3);  // up and out
-
-  target_pose3.position.y -= 0.2;
-  waypoints.push_back(target_pose3);  // left
-
-  target_pose3.position.z -= 0.5;
-  target_pose3.position.y += 0.2;
-  target_pose3.position.x -= 0.2;
-  waypoints.push_back(target_pose3);  // down and right (back to start)
-*/
   // We want the cartesian path to be interpolated at a resolution of 1 cm
   // which is why we will specify 0.01 as the max step in cartesian
   // translation.  We will specify the jump threshold as 0.0, effectively
