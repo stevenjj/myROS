@@ -35,14 +35,18 @@
 
 <!--
   <include file="$(find pr2_moveit_config)/launch/default_warehouse_db.launch" if="$(arg db)"/>
--->
+/-->
 
 <!--
   <node name="try_move_pr2_right_arm" pkg="try_moveit" type="try_move_pr2_right_arm" respawn="false" output="screen">
   </node>
--->
 
   <node name="simple_move_pr2_right_arm" pkg="try_moveit" type="simple_move_pr2_right_arm" respawn="false" output="screen">
+  </node>
+
+-->
+
+  <node name="trajectory_viz_execution" pkg="try_moveit" type="trajectory_viz_execution" respawn="false" output="screen">
   </node>
 
 
