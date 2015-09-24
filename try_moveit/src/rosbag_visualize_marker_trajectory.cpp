@@ -8,6 +8,8 @@
 
 #include <boost/foreach.hpp>
 
+#include <tf/tf.h>
+
 #include <string.h>
 #include <iostream>
 
@@ -78,7 +80,8 @@ void pub_recorded_marker(ros::Publisher &marker_pub, visualization_msgs::Marker:
      visualization_msgs::Marker marker;
     uint32_t shape = visualization_msgs::Marker::CUBE;
     // Set the frame ID and timestamp.  See the TF tutorials for information on these.
-    marker.header.frame_id = "/my_frame";
+    //marker.header.frame_id = "/my_frame";
+    marker.header.frame_id = "/r_gripper_palm_link";
     marker.header.stamp = ros::Time::now();
 
     // Set the namespace and id for this marker.  This serves to create a unique ID
@@ -138,18 +141,54 @@ int main(int argc, char **argv){
     ros::Publisher rvizMarkerPub; 
     rvizMarkerPub = n.advertise < visualization_msgs::Marker > ("visualization_marker", 1);
 
-
     ROS_INFO("Opening Bag");
     rosbag::Bag bag;    
     bag.open("trajectory_bag.bag", rosbag::bagmode::Read);
     std::vector<std::string> topics;
     topics.push_back(std::string("visualization_marker")); //Specify topic to read
     rosbag::View view(bag, rosbag::TopicQuery(topics));
-//    std::cout << "hello world!" << std::endl;
+
+
+
+
+   // Define Reference quaternion to be the x-axis.
+    tf::Quaternion main_axis(1,0,0, 1);
+    main_axis = main_axis.normalize();
+
+    // Define the position and orientation of the first marker
+    tf::Vector3 first_marker_vector_offset();
+    tf::Quaternion first_marker_axis();
+
+    // Define Quaternion Rotation Offset
+    tf::Quaternion axis_rotation;
+
+    // Define Transformation matrix
+    tf::Transform transform_to_main_axis;
     
     int marker_index = 0;
+
+    // Count total number of markers
+    // Identify the first marker and use its position and orientation to identify the first rotation
     int total_markers = 0;
     foreach(rosbag::MessageInstance const m, view){
+        if (total_markers == 0){
+            visualization_msgs::Marker::ConstPtr first_marker = m.instantiate<visualization_msgs::Marker>();
+
+            tf::Vector3 first_marker_vector_offset (first_marker->pose.position.x,
+                                                    first_marker->pose.position.y,
+                                                    first_marker->pose.position.z);                
+
+            tf::Quaternion first_marker_axis (first_marker->pose.orientation.x, 
+                                                  first_marker->pose.orientation.y, 
+                                                  first_marker->pose.orientation.z,
+                                                  first_marker->pose.orientation.w);
+
+            axis_rotation = first_marker_axis.inverse() * main_axis; // Find axis of rotation
+            tf::Transform transform_to_main_axis(axis_rotation, -first_marker_vector_offset); // Create transform
+ 
+            //std::cout << first_marker->pose.orientation.x << std::endl;
+            //std::cout << first_marker_axis.getAxis().getX() << std::endl;
+        }
         total_markers++; // count total number of markers in the rosbag
     }        
 
@@ -168,17 +207,14 @@ int main(int argc, char **argv){
         std::cout << p->pose.orientation.z << std::endl;
         std::cout << p->pose.orientation.w << std::endl;
 
-
         pub_recorded_marker(rvizMarkerPub, p, marker_index, total_markers);
-
         marker_index++;
         //sleep(1.0);
         std::cout << total_markers << std::endl;
     }
     ROS_INFO("Closing bag");
 
-    //pub_marker(rvizMarkerPub);
-    
+    //pub_marker(rvizMarkerPub);    
     
     bag.close();
 

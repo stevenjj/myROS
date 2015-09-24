@@ -50,6 +50,9 @@ add_executable(rosbag_visualize_marker_trajectory src/rosbag_visualize_marker_tr
 target_link_libraries(rosbag_visualize_marker_trajectory ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 install(TARGETS rosbag_visualize_marker_trajectory DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
+add_executable(simple_move_pr2_right_arm src/simple_move_pr2_right_arm.cpp)
+target_link_libraries(simple_move_pr2_right_arm ${catkin_LIBRARIES} ${Boost_LIBRARIES})
+install(TARGETS simple_move_pr2_right_arm DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
 #add_subdirectory(kinematics)
 #add_subdirectory(planning)
