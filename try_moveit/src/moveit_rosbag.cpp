@@ -4,6 +4,8 @@
 #include <std_msgs/String.h>
 #include <std_msgs/Int32.h>
 
+#include <visualization_msgs/Marker.h>
+
 #include <boost/foreach.hpp>
 
 #include <string.h>
@@ -22,24 +24,23 @@ int main(int argc, char **argv){
     topics.push_back(std::string("visualization_marker"));
 
     rosbag::View view(bag, rosbag::TopicQuery(topics));
-    std::cout << "hello world!" << std::endl;
-
-
+//    std::cout << "hello world!" << std::endl;
     
     foreach(rosbag::MessageInstance const m, view)
     {
-        std::cout << m.getTopic() << std::endl;
+        //std::cout << m.getTopic() << std::endl;
     ROS_INFO("Inside bag!");
-
-//        std_msgs::String::ConstPtr s = m.instantiate<std_msgs::String>();
-//        if (s != NULL){
-//            std::cout << s->data << std::endl;
-//        }
-//            ASSERT_EQ(s->data, std::string("foo"));
-
-//        std_msgs::Int32::ConstPtr i = m.instantiate<std_msgs::Int32>();
-//        if (i != NULL)
- //           ASSERT_EQ(i->data, 42);
+        //geometry_msgs::Pose::ConstPtr p = m.instantiate<geometry_msgs::Pose>();
+        visualization_msgs::Marker::ConstPtr p = m.instantiate<visualization_msgs::Marker>();
+        std::cout << m.getDataType() << std::endl;
+        std::cout << p->id << std::endl;
+        std::cout << p->pose.position.x << std::endl;
+        std::cout << p->pose.position.y << std::endl;
+        std::cout << p->pose.position.z << std::endl;
+        std::cout << p->pose.orientation.x << std::endl;
+        std::cout << p->pose.orientation.y << std::endl;
+        std::cout << p->pose.orientation.z << std::endl;
+        std::cout << p->pose.orientation.w << std::endl;
 
     }
     ROS_INFO("Closing bag");
