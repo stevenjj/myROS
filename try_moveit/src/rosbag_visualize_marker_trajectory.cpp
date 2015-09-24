@@ -74,7 +74,7 @@ void pub_marker(ros::Publisher &marker_pub){
 
 
 
-void pub_recorded_marker(ros::Publisher &marker_pub, visualization_msgs::Marker::ConstPtr &rosbag_marker ){
+void pub_recorded_marker(ros::Publisher &marker_pub, visualization_msgs::Marker::ConstPtr &rosbag_marker, int index, int total_markers ){
      visualization_msgs::Marker marker;
     uint32_t shape = visualization_msgs::Marker::CUBE;
     // Set the frame ID and timestamp.  See the TF tutorials for information on these.
@@ -84,7 +84,7 @@ void pub_recorded_marker(ros::Publisher &marker_pub, visualization_msgs::Marker:
     // Set the namespace and id for this marker.  This serves to create a unique ID
     // Any marker sent with the same namespace and id will overwrite the old one
     marker.ns = rosbag_marker->ns;//"basic_shapes";
-    marker.id = rosbag_marker->id;
+    marker.id = index;//rosbag_marker->id;
 
     // Set the marker type.  Initially this is CUBE, and cycles between that and SPHERE, ARROW, and CYLINDER
     marker.type = rosbag_marker->type; //shape;
@@ -107,10 +107,10 @@ void pub_recorded_marker(ros::Publisher &marker_pub, visualization_msgs::Marker:
     marker.scale.z = rosbag_marker->scale.z; //0.5;
 
     // Set the color -- be sure to set alpha to something non-zero!
-    marker.color.r = rosbag_marker->color.r; //0.0f;
-    marker.color.g = rosbag_marker->color.g; //1.0f;
-    marker.color.b = rosbag_marker->color.b; //0.0f;
-    marker.color.a = rosbag_marker->color.a; //1.0;
+    marker.color.r = 0.0f;//rosbag_marker->color.r; //0.0f;
+    marker.color.g = 0.5f;//rosbag_marker->color.g; //1.0f;
+    marker.color.b = 0.5f;//rosbag_marker->color.b; //0.0f;
+    marker.color.a = 1.0 * ( (double)(total_markers - index) / (double)total_markers / 1.15)  ;//rosbag_marker->color.a; //1.0;
 
     marker.lifetime = ros::Duration();
 
@@ -147,6 +147,12 @@ int main(int argc, char **argv){
     rosbag::View view(bag, rosbag::TopicQuery(topics));
 //    std::cout << "hello world!" << std::endl;
     
+    int marker_index = 0;
+    int total_markers = 0;
+    foreach(rosbag::MessageInstance const m, view){
+        total_markers++; // count total number of markers in the rosbag
+    }        
+
     foreach(rosbag::MessageInstance const m, view){
         //std::cout << m.getTopic() << std::endl;
         ROS_INFO("Inside bag!");
@@ -163,12 +169,15 @@ int main(int argc, char **argv){
         std::cout << p->pose.orientation.w << std::endl;
 
 
-        pub_recorded_marker(rvizMarkerPub, p);
-        sleep(1);
+        pub_recorded_marker(rvizMarkerPub, p, marker_index, total_markers);
+
+        marker_index++;
+        sleep(0.5);
+        std::cout << total_markers << std::endl;
     }
     ROS_INFO("Closing bag");
 
-    pub_marker(rvizMarkerPub);
+    //pub_marker(rvizMarkerPub);
     
     
     bag.close();
