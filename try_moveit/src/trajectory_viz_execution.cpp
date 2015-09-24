@@ -44,7 +44,7 @@ void pub_recorded_marker(ros::Publisher &marker_pub, visualization_msgs::Marker:
     uint32_t shape = visualization_msgs::Marker::CUBE;
     // Set the frame ID and timestamp.  See the TF tutorials for information on these.
     //marker.header.frame_id = "/my_frame";
-    marker.header.frame_id = "/r_gripper_palm_link";
+    marker.header.frame_id = "/base_link";
     marker.header.stamp = ros::Time::now();
 
     // Set the namespace and id for this marker.  This serves to create a unique ID
@@ -91,6 +91,19 @@ void pub_recorded_marker(ros::Publisher &marker_pub, visualization_msgs::Marker:
       ROS_WARN_ONCE("Please create a subscriber to the marker");
       sleep(1.0);
     }
+
+    geometry_msgs::Pose target_pose;
+    target_pose.position.x = marker_position.getX();
+    target_pose.position.y = marker_position.getY();
+    target_pose.position.z = marker_position.getZ();
+
+    target_pose.orientation.x = marker_orientation.getAxis().getX();//rosbag_marker->pose.orientation.x;//0.0;
+    target_pose.orientation.y = marker_orientation.getAxis().getY();//rosbag_marker->pose.orientation.y;//0.0;
+    target_pose.orientation.z = marker_orientation.getAxis().getZ();//rosbag_marker->pose.orientation.z;//0.0;
+    target_pose.orientation.w = marker_orientation.getW();//rosbag_marker->pose.orientation.w; //1.0;
+
+    waypoints.push_back(target_pose);  
+
     marker_pub.publish(marker);
 
 }
@@ -166,6 +179,7 @@ int main(int argc, char **argv){
 
    // Define Reference quaternion to be the x-axis.
     //tf::Quaternion main_axis(1,0,0, 1);
+    tf::Vector3 r_gripper_position(start_pose2.position.x, start_pose2.position.y, start_pose2.position.z);    
     tf::Quaternion main_axis(start_pose2.orientation.x, start_pose2.orientation.y, start_pose2.orientation.z, start_pose2.orientation.w);
     main_axis = main_axis.normalize();
 
@@ -173,7 +187,7 @@ int main(int argc, char **argv){
     tf::Vector3 first_marker_vector_offset;
     tf::Quaternion first_marker_axis;
 
-    // Define Quaternion Rotation Offset
+    // Define Quaternion Rotation Offset    
     tf::Quaternion axis_rotation;
 
     
@@ -200,7 +214,7 @@ int main(int argc, char **argv){
     }        
 
     axis_rotation = first_marker_axis.inverse() * main_axis; // Find axis of rotation
-    tf::Transform transform_to_main_axis(tf::Quaternion(0,0,0,1), -first_marker_vector_offset); // Create transform
+    tf::Transform transform_to_main_axis(tf::Quaternion(0,0,0,1), r_gripper_position - first_marker_vector_offset); // Create transform
     tf::Transform rotate_to_main_axis(axis_rotation, tf::Vector3(0,0,0)); // Create transform
 
 
@@ -238,7 +252,7 @@ int main(int argc, char **argv){
   // need to be added to the waypoint list.
 
 
-
+  /*
   geometry_msgs::Pose target_pose3 = start_pose2;
   target_pose3.position.x += 0.2;
   target_pose3.position.z += 0.2;
@@ -251,7 +265,7 @@ int main(int argc, char **argv){
   target_pose3.position.y += 0.2;
   target_pose3.position.x -= 0.2;
   waypoints.push_back(target_pose3);  // down and right (back to start)
-
+*/
   // We want the cartesian path to be interpolated at a resolution of 1 cm
   // which is why we will specify 0.01 as the max step in cartesian
   // translation.  We will specify the jump threshold as 0.0, effectively
@@ -270,7 +284,7 @@ int main(int argc, char **argv){
 
   moveit::planning_interface::MoveGroup::Plan plan;
   plan.trajectory_ = trajectory;
-//  group.execute(plan);
+  group.execute(plan);
   
   sleep(15.0);
   ros::shutdown();  
