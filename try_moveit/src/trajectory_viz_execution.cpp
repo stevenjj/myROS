@@ -82,18 +82,6 @@ void pub_recorded_marker(ros::Publisher &marker_pub, visualization_msgs::Marker:
     // Make it last forever. We don't need to keep publishing it.
     marker.lifetime = ros::Duration();
 
-    // Publish the marker
-    while (marker_pub.getNumSubscribers() < 1)
-    {
-      if (!ros::ok())
-      {
-        ROS_WARN_ONCE("NOT OK!");
-        break;
-      }
-      ROS_WARN_ONCE("Please create a subscriber to the marker");
-      sleep(1.0);
-    }
-
     // Push marker 6DoF Pose to the waypoints vector.
     geometry_msgs::Pose target_pose;
     target_pose.position.x = marker_position.getX();
@@ -107,6 +95,17 @@ void pub_recorded_marker(ros::Publisher &marker_pub, visualization_msgs::Marker:
 
     waypoints.push_back(target_pose);  
 
+    // Publish the marker
+    while (marker_pub.getNumSubscribers() < 1)
+    {
+      if (!ros::ok())
+      {
+        ROS_WARN_ONCE("NOT OK!");
+        break;
+      }
+      ROS_WARN_ONCE("Please create a subscriber to the marker");
+      sleep(1.0);
+    }
     marker_pub.publish(marker);
 
 }
@@ -119,7 +118,7 @@ int main(int argc, char **argv){
   spinner.start();
 
   ros::Publisher rvizMarkerPub; 
-  rvizMarkerPub = n.advertise < visualization_msgs::Marker > ("visualization_marker", 1);
+  rvizMarkerPub = n.advertise < visualization_msgs::Marker > ("visualization_marker", 1000);
 
 
 
