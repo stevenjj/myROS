@@ -32,7 +32,7 @@ void pub_recorded_marker_old(ros::Publisher &marker_pub, visualization_msgs::Mar
     uint32_t shape = visualization_msgs::Marker::CUBE;
     // Set the frame ID and timestamp.  See the TF tutorials for information on these.
     //marker.header.frame_id = "/my_frame";
-    marker.header.frame_id = "/my_frame";
+    marker.header.frame_id = "/base_link";
     marker.header.stamp = ros::Time::now();
 
     // Set the namespace and id for this marker.  This serves to create a unique ID
@@ -104,7 +104,7 @@ void pub_recorded_marker(ros::Publisher &marker_pub, visualization_msgs::Marker:
     uint32_t shape = visualization_msgs::Marker::CUBE;
     // Set the frame ID and timestamp.  See the TF tutorials for information on these.
     //marker.header.frame_id = "/my_frame";
-    marker.header.frame_id = "/my_frame";
+    marker.header.frame_id = "/base_link";
     marker.header.stamp = ros::Time::now();
 
     // Set the namespace and id for this marker.  This serves to create a unique ID
@@ -119,13 +119,26 @@ void pub_recorded_marker(ros::Publisher &marker_pub, visualization_msgs::Marker:
     marker.action = visualization_msgs::Marker::ADD;
 
     // Set the pose of the marker.  This is a full 6DOF pose relative to the frame/time specified in the header
-    marker.pose.position.x = marker_position.getX();//rosbag_marker->pose.position.x;//0;
+    // marker.pose.position.x = marker_position.getX();//rosbag_marker->pose.position.x;//0;
+    // marker.pose.position.y = marker_position.getY();//rosbag_marker->pose.position.y;//0;
+    // marker.pose.position.z = marker_position.getZ();//rosbag_marker->pose.position.z;//0;
+    // marker.pose.orientation.x = marker_orientation.getAxis().getX();//rosbag_marker->pose.orientation.x;//0.0;
+    // marker.pose.orientation.y = marker_orientation.getAxis().getY();//rosbag_marker->pose.orientation.y;//0.0;
+    // marker.pose.orientation.z = marker_orientation.getAxis().getZ();//rosbag_marker->pose.orientation.z;//0.0;
+    // marker.pose.orientation.w = marker_orientation.getW();//rosbag_marker->pose.orientation.w; //1.0;
+
+
+    // Try some coordinate transformations:
+    marker.pose.position.z = marker_position.getX();//rosbag_marker->pose.position.x;//0;
     marker.pose.position.y = marker_position.getY();//rosbag_marker->pose.position.y;//0;
-    marker.pose.position.z = marker_position.getZ();//rosbag_marker->pose.position.z;//0;
+    marker.pose.position.x = -marker_position.getZ();//rosbag_marker->pose.position.z;//0;
     marker.pose.orientation.x = marker_orientation.getAxis().getX();//rosbag_marker->pose.orientation.x;//0.0;
     marker.pose.orientation.y = marker_orientation.getAxis().getY();//rosbag_marker->pose.orientation.y;//0.0;
     marker.pose.orientation.z = marker_orientation.getAxis().getZ();//rosbag_marker->pose.orientation.z;//0.0;
     marker.pose.orientation.w = marker_orientation.getW();//rosbag_marker->pose.orientation.w; //1.0;
+
+
+
 
     // Set the scale of the marker -- 1x1x1 here means 1m on a side
     marker.scale.x = rosbag_marker->scale.x; //1.0;
@@ -164,7 +177,7 @@ int main(int argc, char **argv){
 
     ROS_INFO("Opening Bag");
     rosbag::Bag bag;    
-    bag.open("trajectory_bag.bag", rosbag::bagmode::Read);
+    bag.open("circular_forward_trajectory.bag", rosbag::bagmode::Read);
     std::vector<std::string> topics;
     topics.push_back(std::string("visualization_marker")); //Specify topic to read
     rosbag::View view(bag, rosbag::TopicQuery(topics));
