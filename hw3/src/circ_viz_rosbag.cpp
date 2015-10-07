@@ -101,7 +101,10 @@ void pub_recorded_marker(ros::Publisher &marker_pub, visualization_msgs::Marker:
     marker_orientation = rotate_to_main * marker_orientation;
 
      visualization_msgs::Marker marker;
-    uint32_t shape = visualization_msgs::Marker::CUBE;
+//    uint32_t shape = visualization_msgs::Marker::CUBE;
+//    uint32_t shape = visualization_msgs::Marker::SPHERE;
+    uint32_t shape = visualization_msgs::Marker::ARROW;
+
     // Set the frame ID and timestamp.  See the TF tutorials for information on these.
     //marker.header.frame_id = "/my_frame";
     marker.header.frame_id = "/base_link";
@@ -113,7 +116,7 @@ void pub_recorded_marker(ros::Publisher &marker_pub, visualization_msgs::Marker:
     marker.id = index;//rosbag_marker->id;
 
     // Set the marker type.  Initially this is CUBE, and cycles between that and SPHERE, ARROW, and CYLINDER
-    marker.type = rosbag_marker->type; //shape;
+    marker.type = shape; //rosbag_marker->type; 
 
     // Set the marker action.  Options are ADD, DELETE, and new in ROS Indigo: 3 (DELETEALL)
     marker.action = visualization_msgs::Marker::ADD;
@@ -132,18 +135,17 @@ void pub_recorded_marker(ros::Publisher &marker_pub, visualization_msgs::Marker:
     marker.pose.position.z = marker_position.getX();//rosbag_marker->pose.position.x;//0;
     marker.pose.position.y = marker_position.getY();//rosbag_marker->pose.position.y;//0;
     marker.pose.position.x = -marker_position.getZ();//rosbag_marker->pose.position.z;//0;
-    marker.pose.orientation.x = marker_orientation.getAxis().getX();//rosbag_marker->pose.orientation.x;//0.0;
-    marker.pose.orientation.y = marker_orientation.getAxis().getY();//rosbag_marker->pose.orientation.y;//0.0;
-    marker.pose.orientation.z = marker_orientation.getAxis().getZ();//rosbag_marker->pose.orientation.z;//0.0;
-    marker.pose.orientation.w = marker_orientation.getW();//rosbag_marker->pose.orientation.w; //1.0;
-
+    marker.pose.orientation.x = 1;//rosbag_marker->pose.orientation.x;//0.0;
+    marker.pose.orientation.y = 0;//rosbag_marker->pose.orientation.y;//0.0;
+    marker.pose.orientation.z = 0;//rosbag_marker->pose.orientation.z;//0.0;
+    marker.pose.orientation.w = 0;//rosbag_marker->pose.orientation.w; //1.0;
 
 
 
     // Set the scale of the marker -- 1x1x1 here means 1m on a side
-    marker.scale.x = rosbag_marker->scale.x; //1.0;
-    marker.scale.y = rosbag_marker->scale.y; //1.0;
-    marker.scale.z = rosbag_marker->scale.z; //0.5;
+    marker.scale.x = 0.02;//rosbag_marker->scale.x; //1.0;
+    marker.scale.y = 0.005;//rosbag_marker->scale.y; //1.0;
+    marker.scale.z = 0.005;//rosbag_marker->scale.z; //0.5;
 
     // Set the color -- be sure to set alpha to something non-zero!
     marker.color.r = 1.0 *  ( (double)(total_markers - index) / (double)total_markers);//rosbag_marker->color.r; //0.0f;
