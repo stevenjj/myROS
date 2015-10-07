@@ -45,6 +45,9 @@ add_executable(circ_viz_rosbag src/circ_viz_rosbag.cpp)
 target_link_libraries(circ_viz_rosbag ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 install(TARGETS circ_viz_rosbag DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
+add_executable(dmp_f_target_calc src/dmp_f_target_calc.cpp)
+target_link_libraries(dmp_f_target_calc ${catkin_LIBRARIES} ${Boost_LIBRARIES})
+install(TARGETS dmp_f_target_calc DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
 #add_subdirectory(kinematics)
 #add_subdirectory(planning)
