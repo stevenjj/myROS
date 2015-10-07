@@ -35,7 +35,7 @@ void pub_recorded_marker(ros::Publisher &marker_pub, visualization_msgs::Marker:
 //    uint32_t shape = visualization_msgs::Marker::SPHERE;
     uint32_t shape = visualization_msgs::Marker::ARROW;
 
-    // Set the frame ID and timestamp.  See the TF tutorials for information on these.
+    // Set the frame ID and timestamp.  See the TF tutorials for information on these.my_frame
     //marker.header.frame_id = "/my_frame";
     marker.header.frame_id = "/base_link";
     marker.header.stamp = ros::Time::now();
@@ -88,6 +88,33 @@ void pub_recorded_marker(ros::Publisher &marker_pub, visualization_msgs::Marker:
 
 }
 
+
+// Calculates constant acceleration between two points x0, x1 and factors in velocity between them.
+float calc_acel(float x1, float xo, float vo, float dt){
+    return ( (x1 - xo - (vo*dt))/pow(dt,2) );
+}
+
+// Returns acceleration for x,y,z
+tf::Vector3 constant_a(tf::Vector3 &pos_next_i, tf::Vector3 &pos_i, tf::Vector3 &vel_i, float dt){
+    float a_x = calc_acel( pos_next_i.getX(), pos_i.getX(), vel_i.getX(), dt);
+    float a_y = calc_acel( pos_next_i.getY(), pos_i.getY(), vel_i.getY(), dt);
+    float a_z = calc_acel( pos_next_i.getZ(), pos_i.getZ(), vel_i.getZ(), dt);
+    return tf::Vector3(a_x,a_y,a_z);
+}
+
+// Calculates velocity(i+1) from acceleration and prevoius velocity
+float calc_vel(float a_o, float v_o, float dt){
+    return a_o*dt + v_o;
+}
+
+tf::Vector3 vel_from_a(tf::Vector3 &acel_i, tf::Vector3 &vel_i, float dt){
+    float v_x = calc_vel( acel_i.getX(), vel_i.getX(), dt);
+    float v_y = calc_vel( acel_i.getY(), vel_i.getY(), dt);
+    float v_z = calc_vel( acel_i.getZ(), vel_i.getZ(), dt);
+    return tf::Vector3(v_x, v_y, v_z);
+}
+
+
 int main(int argc, char **argv){
     ros::init (argc, argv, "dmp_f_target_calc");
     ros::NodeHandle n;
@@ -127,13 +154,27 @@ int main(int argc, char **argv){
         // Count total number of markers in the rosbag
         n_samples++; 
     }    
-    std::cout << n_samples << std::endl;
+    //std::cout << n_samples << std::endl;
 
     // Calculate derivatives
 
-    for (std::vector<int>::size_type i = 0; i < n_samples; ++i){
+    // Initialize Velocity(0) to 0
+    tf::Vector3 v_o(0,0,0);
+    demo_vel.push_back(v_o);
+
+    for (std::vector<int>::size_type i = 0; i < n_samples-1; ++i){
         std::cout << i << std::endl;
         std::cout << demo_pos[0].getX() << std::endl;
+
+        float dt = demo_t[i+1] - demo_t[i];
+        // Calculate acceleration(i) and add it to acceleration vector.
+        demo_acel.push_back( constant_a(demo_pos[i+1], demo_pos[i], demo_vel[i], dt) );
+        // Calculate velocity(i+1) and add it to velocity vector.
+        demo_vel.push_back( vel_from_a(demo_acel[i], demo_vel[i], dt) );
+
+        std::cout << dt << std::endl;
+
+
     }
 
 
