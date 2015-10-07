@@ -131,9 +131,10 @@ int main(int argc, char **argv){
 
     // Calculate derivatives
 
-
-
-
+    for (std::vector<int>::size_type i = 0; i < n_samples; ++i){
+        std::cout << i << std::endl;
+        std::cout << demo_pos[0].getX() << std::endl;
+    }
 
 
 //        std::cout << pow(10,2) << std::endl;
