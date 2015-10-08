@@ -124,6 +124,18 @@ tf::Vector3 calc_f_target(double tau, tf::Vector3 &a_i, tf::Vector3 &v_i, tf::Ve
     return tf::Vector3(f_target_s_x, f_target_s_y, f_target_s_z);
 }
 
+double f_query(double s_des, std::vector<double> &s, std::vector<tf::Vector3> &f_s){
+
+    for(std::vector<double>::iterator s_i = s.begin(); s_i != s.end(); ++s_i) {
+        std::cout << *s_i << std::endl;
+    /* std::cout << *it; ... */
+    }
+
+
+    return 0;
+
+}
+
 // Calculate the waypoints via integration of the dynamic system
 std::vector<tf::Vector3> generate_waypoints(double K, double D, double tau, double alpha,  tf::Vector3 &start_pos, 
                                                                                            tf::Vector3 &goal_pos,
@@ -135,10 +147,15 @@ std::vector<tf::Vector3> generate_waypoints(double K, double D, double tau, doub
 
     tf::Vector3 pos(0,0,0);       
     double dt = 0.01;
+    double t = 0;
 
-//    double f_query
+    int iters = (int) (tau/dt);
+    double s_cur = exp(alpha/tau*t);
 
-    // 1/tau * ( K*(g-x) - D*v - K*(g-x_init)*s + K*f(s) ) 
+
+    double a = f_query(s_cur, s, f_s);
+
+// 1/tau * ( K*(g-x) - D*v - K*(g-x_init)*s + K*f(s) ) 
 //    double vdot_x = 1/tau * ( K*(goal_pos.getX() - x)  )
 //    double xdot = 1/tau*(vdot_x*dt + )''
 
