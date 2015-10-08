@@ -221,8 +221,6 @@ std::vector<tf::Vector3> generate_waypoints(double K, double D, double tau, doub
     tf::Vector3 vel(0,0,0);       
     tf::Vector3 pos(start_pos.getX(), start_pos.getY(), start_pos.getZ());       
 
-//    tf::Vector3 a = f_query(0.945, s, f_s);    
-
 //    for (std::vector<int>::size_type i = 0; i < iters; ++i){        
    for (std::vector<int>::size_type i = 0; i < n_samples-1; ++i){
         double dt = demo_t[i+1] - demo_t[i];
@@ -235,19 +233,31 @@ std::vector<tf::Vector3> generate_waypoints(double K, double D, double tau, doub
                                                   pos.getX(), vel.getX(), 
                                                   start_pos.getX(), 
                                                   s_des, f_query(s_des, s, f_s).getX());
+        double acel_y = calculate_acel(tau, K, D, goal_pos.getY(), 
+                                                  pos.getY(), vel.getY(), 
+                                                  start_pos.getY(), 
+                                                  s_des, f_query(s_des, s, f_s).getY());
+        double acel_z = calculate_acel(tau, K, D, goal_pos.getZ(), 
+                                                  pos.getZ(), vel.getZ(), 
+                                                  start_pos.getZ(), 
+                                                  s_des, f_query(s_des, s, f_s).getZ());
 
         double vel_x = (acel_x*dt + vel.getX());
+        double vel_y = (acel_y*dt + vel.getY());
+        double vel_z = (acel_z*dt + vel.getZ());
+
         double pos_x = (1/tau)*vel_x*dt + pos.getX();
+        double pos_y = (1/tau)*vel_y*dt + pos.getY();
+        double pos_z = (1/tau)*vel_z*dt + pos.getZ();
 
         std::cout << pos_x << std::endl;
-//        std::cout << f_query(s_des, s, f_s).getX() << std::endl;        
 
-        pos = tf::Vector3(pos_x, 0, 0);
-        vel = tf::Vector3(vel_x, 0, 0);        
+        pos = tf::Vector3(pos_x, pos_y, pos_z);
+        vel = tf::Vector3(vel_x, vel_y, vel_z);        
+
         h.push_back(pos);
 
-        t += dt; 
-    
+        t += dt;     
    }
 
 
