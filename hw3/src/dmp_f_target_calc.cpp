@@ -124,15 +124,47 @@ tf::Vector3 calc_f_target(double tau, tf::Vector3 &a_i, tf::Vector3 &v_i, tf::Ve
     return tf::Vector3(f_target_s_x, f_target_s_y, f_target_s_z);
 }
 
-double f_query(double s_des, std::vector<double> &s, std::vector<tf::Vector3> &f_s){
-
+// Fully debugged. Working.
+// Do a linear interpolation between points and return f_target_s
+tf::Vector3 f_query(double s_des, std::vector<double> &s, std::vector<tf::Vector3> &f_s){
+    int i = 0;
+    double s_lowerbound = 0;
     for(std::vector<double>::iterator s_i = s.begin(); s_i != s.end(); ++s_i) {
-        std::cout << *s_i << std::endl;
-    /* std::cout << *it; ... */
+//        std::cout << *s_i << std::endl;
+        // These are changed to integers so that a comparison can be made between integers
+        int s_query = (int) ( s_des*10000.0 );
+        int s_cur = (int) ( (*s_i)*10000.0 );                  
+
+        // If the query is the same as the entry in the (s,f(s)) table, return f(s) from the table 
+        if (s_query == s_cur){ 
+            return f_s[i];
+        }
+        //  Note that vector s is arranged from 1 approaching 0. So long as s_query is smaller than the current s,
+        //  we need to keep updating the lower bound of the linear approximation
+        if (s_des < *s_i){
+            i++;
+            s_lowerbound = *s_i;                
+            continue;
+        }
+
+        // Once we've identified that s_query is between two elements in the table, we return the linear interpolation inbetween
+        if (s_des > *s_i){
+            double f_s_x = ( ((f_s[i].getX() - f_s[i-1].getX()) / (s_lowerbound - *s_i))*(s_lowerbound - s_des) ) + f_s[i-1].getX() ;
+            double f_s_y = ( ((f_s[i].getY() - f_s[i-1].getY()) / (s_lowerbound - *s_i))*(s_lowerbound - s_des) ) + f_s[i-1].getY() ;            
+            double f_s_z = ( ((f_s[i].getZ() - f_s[i-1].getZ()) / (s_lowerbound - *s_i))*(s_lowerbound - s_des) ) + f_s[i-1].getZ() ;
+           // std::cout << f_s_y << std::endl;
+
+            return tf::Vector3(f_s_x, f_s_y, f_s_z);
+        }
+
+        //std::cout << "Loop Check" << std::endl;            
     }
 
+    // Reached the end of f(s). Return the last element of f(s)
+    //    std::cout << i << std::endl;
+    //    std::cout << f_s[i-1].getX() << std::endl; // Since we did a i++ before ending the loop
 
-    return 0;
+    return tf::Vector3(f_s[i-1].getX(), f_s[i-1].getY(), f_s[i-1].getZ());
 
 }
 
@@ -152,8 +184,8 @@ std::vector<tf::Vector3> generate_waypoints(double K, double D, double tau, doub
     int iters = (int) (tau/dt);
     double s_cur = exp(alpha/tau*t);
 
-
-    double a = f_query(s_cur, s, f_s);
+//    tf::Vector3 a = f_query(s_cur, s, f_s);
+    tf::Vector3 a = f_query(0.945, s, f_s);    
 
 // 1/tau * ( K*(g-x) - D*v - K*(g-x_init)*s + K*f(s) ) 
 //    double vdot_x = 1/tau * ( K*(goal_pos.getX() - x)  )
@@ -231,7 +263,7 @@ int main(int argc, char **argv){
 
     // =======================================================================================================================================
     // Calculate DMP Part 1: get f_target(s)
-    double K = 5.0;
+    double K = 1.0;
     double D = 0.2*sqrt(K);
     double tau = 10; // in seconds
 
@@ -243,8 +275,8 @@ int main(int argc, char **argv){
     double tau_demo = demo_t[n_samples-2] - demo_t[0]; // duration of demo
     double alpha = log(0.01); // selected so that s(t) = exp(-alpha/tau_demo)*t converges to 99% when t = tau_demo    
 
-    std::cout << tau_demo << std::endl;
-    std::cout << alpha << std::endl;
+//    std::cout << tau_demo << std::endl;
+//    std::cout << alpha << std::endl;
     for (std::vector<int>::size_type i = 0; i < n_samples-1; ++i){
         double s = exp(alpha/tau_demo * demo_t[i]); //Grab current time and find s
         phase_s.push_back(s); // store phase variable s
