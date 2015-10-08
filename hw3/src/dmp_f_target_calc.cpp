@@ -89,6 +89,12 @@ void pub_recorded_marker(ros::Publisher &marker_pub, visualization_msgs::Marker:
 }
 
 
+
+
+
+
+
+// METHOD 1 of velocity and acceleration
 // Calculates constant acceleration between two points x0, x1 and factors in velocity between them.
 double calc_acel(double x1, double xo, double vo, double dt){
     return ( (x1 - xo - (vo*dt))/pow(dt,2) );
@@ -114,12 +120,35 @@ tf::Vector3 vel_from_a(tf::Vector3 &acel_i, tf::Vector3 &vel_i, double dt){
     return tf::Vector3(v_x, v_y, v_z);
 }
 
+// Method 2 of calculating velocity and accelereation:
+double calc_vel_from_del(double dt, double x1, double x0, double vo){
+    return ( (2*(x1-x0)/dt) - vo);
+}
+tf::Vector3 v1_from_del_x(double dt, tf::Vector3 &v_o, tf::Vector3 &pos1, tf::Vector3 &pos0){
+    double v1_x = calc_vel_from_del(dt, pos1.getX(), pos0.getX(), v_o.getX() );
+    double v1_y = calc_vel_from_del(dt, pos1.getY(), pos0.getY(), v_o.getY() );
+    double v1_z = calc_vel_from_del(dt, pos1.getZ(), pos0.getZ(), v_o.getZ() );
+    return tf::Vector3(v1_x, v1_y, v1_z);
+} 
+
+
+double calc_a_from_v1(double dt, double v1, double vo){
+    return (v1-vo)/dt;
+}
+tf::Vector3 a_from_v1(double dt, tf::Vector3 &v_1, tf::Vector3 &v_o) {
+    double a_x = calc_a_from_v1(dt, v_1.getX(), v_o.getX() );
+    double a_y = calc_a_from_v1(dt, v_1.getY(), v_o.getY() );    
+    double a_z = calc_a_from_v1(dt, v_1.getZ(), v_o.getZ() );
+    return tf::Vector3(a_x, a_y, a_z);    
+}
+
 // Calculates the forcing function f_target_s
 tf::Vector3 calc_f_target(double tau, tf::Vector3 &a_i, tf::Vector3 &v_i, tf::Vector3 &pos_i, tf::Vector3 &pos_init, 
                     tf::Vector3 &pos_goal, double K, double D, double s){
-    double f_target_s_x = (tau*(a_i.getX() + D*v_i.getX())/K) - (pos_goal.getX() - pos_i.getX()) + (pos_goal.getX()-pos_init.getX())*s;
-    double f_target_s_y = (tau*(a_i.getY() + D*v_i.getY())/K) - (pos_goal.getY() - pos_i.getY()) + (pos_goal.getY()-pos_init.getY())*s;    
-    double f_target_s_z = (tau*(a_i.getZ() + D*v_i.getZ())/K) - (pos_goal.getZ() - pos_i.getZ()) + (pos_goal.getZ()-pos_init.getZ())*s;
+    double f_target_s_x = ((tau*a_i.getX() + D*v_i.getX())/K) - (pos_goal.getX() - pos_i.getX()) + (pos_goal.getX()-pos_init.getX())*s;
+    double f_target_s_y = ((tau*a_i.getY() + D*v_i.getY())/K) - (pos_goal.getY() - pos_i.getY()) + (pos_goal.getY()-pos_init.getY())*s;    
+    double f_target_s_z = ((tau*a_i.getZ() + D*v_i.getZ())/K) - (pos_goal.getZ() - pos_i.getZ()) + (pos_goal.getZ()-pos_init.getZ())*s;
+
 
     return tf::Vector3(f_target_s_x, f_target_s_y, f_target_s_z);
 }
@@ -164,6 +193,7 @@ tf::Vector3 f_query(double s_des, std::vector<double> &s, std::vector<tf::Vector
     //    std::cout << i << std::endl;
     //    std::cout << f_s[i-1].getX() << std::endl; // Since we did a i++ before ending the loop
 
+//    return tf::Vector3(0,0,0);
     return tf::Vector3(f_s[i-1].getX(), f_s[i-1].getY(), f_s[i-1].getZ());
 
 }
@@ -172,24 +202,42 @@ tf::Vector3 f_query(double s_des, std::vector<double> &s, std::vector<tf::Vector
 std::vector<tf::Vector3> generate_waypoints(double K, double D, double tau, double alpha,  tf::Vector3 &start_pos, 
                                                                                            tf::Vector3 &goal_pos,
                                                                                            std::vector<double> &s, 
-                                                                                           std::vector<tf::Vector3> &f_s) {
-    std::vector<tf::Vector3> h;
-    tf::Vector3 vdot_init(0,0,0);
-    tf::Vector3 vdot(0,0,0);
-
-    tf::Vector3 pos(0,0,0);       
+                                                                                           std::vector<tf::Vector3> &f_s,
+                                                                                           int n_samples,
+                                                                                           std::vector<double> demo_t) {
     double dt = 0.01;
     double t = 0;
-
     int iters = (int) (tau/dt);
     double s_cur = exp(alpha/tau*t);
 
-//    tf::Vector3 a = f_query(s_cur, s, f_s);
-    tf::Vector3 a = f_query(0.945, s, f_s);    
+    std::vector<tf::Vector3> h;
+    tf::Vector3 vel(0,0,0);       
+    tf::Vector3 pos(start_pos.getX(), start_pos.getY(), start_pos.getZ());       
 
-// 1/tau * ( K*(g-x) - D*v - K*(g-x_init)*s + K*f(s) ) 
-//    double vdot_x = 1/tau * ( K*(goal_pos.getX() - x)  )
-//    double xdot = 1/tau*(vdot_x*dt + )''
+//    tf::Vector3 a = f_query(0.945, s, f_s);    
+
+//    for (std::vector<int>::size_type i = 0; i < iters; ++i){        
+   for (std::vector<int>::size_type i = 0; i < n_samples-1; ++i){
+        double dt = demo_t[i+1] - demo_t[i];
+        double s_des = exp(alpha/tau * t);
+        double acel_x = (1/tau) * ( K*(goal_pos.getX()- pos.getX()) - D*vel.getX() - 
+                                    K*(goal_pos.getX() - start_pos.getX())*s_des +  
+                                    K*f_query(s_des, s, f_s).getX() );
+
+        double vel_x = (acel_x*dt + vel.getX());
+        double pos_x = (1/tau)*vel_x*dt + pos.getX();
+
+        std::cout << pos_x << std::endl;
+//        std::cout << f_query(s_des, s, f_s).getX() << std::endl;        
+
+        pos = tf::Vector3(pos_x, 0, 0);
+        vel = tf::Vector3(vel_x, 0, 0);        
+        h.push_back(pos);
+
+        t += dt; 
+    
+   }
+
 
     h.push_back(tf::Vector3(0,0,0));
     return h;
@@ -248,23 +296,37 @@ int main(int argc, char **argv){
         //        std::cout << pow(10,2) << std::endl;
         //        std::cout << log(1) << std::endl; 
         //        std::cout << exp(1) << std::endl;
-    // Initialize Velocity(0) to 0
+    // Initialize Velocity(0) to 0    
     tf::Vector3 v_o(0,0,0);
     demo_vel.push_back(v_o);
+    
+
+    // Method 1:
+    // for (std::vector<int>::size_type i = 0; i < n_samples-1; ++i){
+    //     //std::cout << demo_pos[0].getX() << std::endl;
+    //     double dt = demo_t[i+1] - demo_t[i];
+    //     // Calculate constant acceleration(i) to get xo to x1 and add it to acceleration vector.
+    //     demo_acel.push_back( constant_a(demo_pos[i+1], demo_pos[i], demo_vel[i], dt) );
+    //     // Calculate velocity(i+1) and add it to velocity vector.
+    //     demo_vel.push_back( vel_from_a(demo_acel[i], demo_vel[i], dt) );
+    // }
+
+    // Method 2:
     for (std::vector<int>::size_type i = 0; i < n_samples-1; ++i){
         //std::cout << demo_pos[0].getX() << std::endl;
         double dt = demo_t[i+1] - demo_t[i];
-        // Calculate constant acceleration(i) to get xo to x1 and add it to acceleration vector.
-        demo_acel.push_back( constant_a(demo_pos[i+1], demo_pos[i], demo_vel[i], dt) );
-        // Calculate velocity(i+1) and add it to velocity vector.
-        demo_vel.push_back( vel_from_a(demo_acel[i], demo_vel[i], dt) );
+        tf::Vector3 v_1 = v1_from_del_x(dt, v_o, demo_pos[i+1], demo_pos[i]);
+        demo_acel.push_back( a_from_v1(dt, v_1, demo_vel[i]) );
+        demo_vel.push_back(v_1);
     }
+
+
     // =======================================================================================================================================
 
     // =======================================================================================================================================
     // Calculate DMP Part 1: get f_target(s)
-    double K = 1.0;
-    double D = 0.2*sqrt(K);
+    double K = 10.0;
+    double D = 2*sqrt(K);
     double tau = 10; // in seconds
 
 
@@ -291,9 +353,24 @@ int main(int argc, char **argv){
     tf::Vector3 r_gripper_start_pos(0,0,0); //Modify this to pr2's starting arm position
     tf::Vector3 r_gripper_goal_pos(0.75,0,0); //Modify this to pr2's starting arm position
 
-    std::vector<tf::Vector3> xyz_waypoints = generate_waypoints(K, D, tau_des, alpha, r_gripper_start_pos, r_gripper_goal_pos, phase_s, f_target_s); 
+    // std::vector<tf::Vector3> xyz_waypoints = generate_waypoints(K, D, tau_des, alpha, r_gripper_start_pos, 
+    //                                                                                   r_gripper_goal_pos, 
+    //                                                                                   phase_s, 
+    //                                                                                   f_target_s,
+    //                                                                                   n_samples,
+    //                                                                                   demo_t); 
 
+    std::vector<tf::Vector3> xyz_waypoints = generate_waypoints(K, D, tau_des, alpha, demo_pos[0], 
+                                                                                      demo_pos[n_samples-1], 
+                                                                                      phase_s, 
+                                                                                      f_target_s,
+                                                                                      n_samples,
+                                                                                      demo_t);     
 
+//  std::cout << "The x positions before were:" << std::endl;
+//    for (std::vector<int>::size_type i = 0; i < n_samples; ++i){
+//        std::cout<< demo_pos[i].getX() << std::endl;
+//    }    
 
 /*
    // Define Reference quaternion to be the x-axis.
