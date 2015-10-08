@@ -124,8 +124,24 @@ tf::Vector3 calc_f_target(double tau, tf::Vector3 &a_i, tf::Vector3 &v_i, tf::Ve
     return tf::Vector3(f_target_s_x, f_target_s_y, f_target_s_z);
 }
 
-std::vector<tf::Vector3> generate_waypoints(void){
+// Calculate the waypoints via integration of the dynamic system
+std::vector<tf::Vector3> generate_waypoints(double K, double D, double tau, double alpha,  tf::Vector3 &start_pos, 
+                                                                                           tf::Vector3 &goal_pos,
+                                                                                           std::vector<double> &s, 
+                                                                                           std::vector<tf::Vector3> &f_s) {
     std::vector<tf::Vector3> h;
+    tf::Vector3 vdot_init(0,0,0);
+    tf::Vector3 vdot(0,0,0);
+
+    tf::Vector3 pos(0,0,0);       
+    double dt = 0.01;
+
+//    double f_query
+
+    // 1/tau * ( K*(g-x) - D*v - K*(g-x_init)*s + K*f(s) ) 
+//    double vdot_x = 1/tau * ( K*(goal_pos.getX() - x)  )
+//    double xdot = 1/tau*(vdot_x*dt + )''
+
     h.push_back(tf::Vector3(0,0,0));
     return h;
 }
@@ -226,7 +242,7 @@ int main(int argc, char **argv){
     tf::Vector3 r_gripper_start_pos(0,0,0); //Modify this to pr2's starting arm position
     tf::Vector3 r_gripper_goal_pos(0.75,0,0); //Modify this to pr2's starting arm position
 
-    std::vector<tf::Vector3> xyz_waypoints = generate_waypoints();//generate_waypoints(K, D, tau_des, r_gripper_start_pos, r_gripper_goal_pos, f_target_s); 
+    std::vector<tf::Vector3> xyz_waypoints = generate_waypoints(K, D, tau_des, alpha, r_gripper_start_pos, r_gripper_goal_pos, phase_s, f_target_s); 
 
 
 
