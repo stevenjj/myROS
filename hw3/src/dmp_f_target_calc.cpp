@@ -198,6 +198,13 @@ tf::Vector3 f_query(double s_des, std::vector<double> &s, std::vector<tf::Vector
 
 }
 
+double calculate_acel(double tau, double K, double D, double goal_pos, 
+                        double cur_pos, double cur_vel, double start_pos, double s_des, double fs){
+    double acel = (1/tau) * ( K*(goal_pos- cur_pos) - D*cur_vel - 
+                                    K*(goal_pos - start_pos)*s_des +  
+                                    K*fs);
+    return acel;
+}
 // Calculate the waypoints via integration of the dynamic system
 std::vector<tf::Vector3> generate_waypoints(double K, double D, double tau, double alpha,  tf::Vector3 &start_pos, 
                                                                                            tf::Vector3 &goal_pos,
@@ -220,9 +227,14 @@ std::vector<tf::Vector3> generate_waypoints(double K, double D, double tau, doub
    for (std::vector<int>::size_type i = 0; i < n_samples-1; ++i){
         double dt = demo_t[i+1] - demo_t[i];
         double s_des = exp(alpha/tau * t);
-        double acel_x = (1/tau) * ( K*(goal_pos.getX()- pos.getX()) - D*vel.getX() - 
-                                    K*(goal_pos.getX() - start_pos.getX())*s_des +  
-                                    K*f_query(s_des, s, f_s).getX() );
+//        double acel_x = (1/tau) * ( K*(goal_pos.getX() - pos.getX()) - D*vel.getX() - 
+                                    // K*(goal_pos.getX() - start_pos.getX())*s_des +  
+                                    // K*f_query(s_des, s, f_s).getX() );
+
+        double acel_x = calculate_acel(tau, K, D, goal_pos.getX(), 
+                                                  pos.getX(), vel.getX(), 
+                                                  start_pos.getX(), 
+                                                  s_des, f_query(s_des, s, f_s).getX());
 
         double vel_x = (acel_x*dt + vel.getX());
         double pos_x = (1/tau)*vel_x*dt + pos.getX();
