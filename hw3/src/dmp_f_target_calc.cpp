@@ -263,8 +263,8 @@ std::vector<tf::Vector3> generate_waypoints(double K, double D, double tau, doub
         double pos_y = (1/tau)*vel_y*dt + pos.getY();
         double pos_z = (1/tau)*vel_z*dt + pos.getZ();
 
-        std::cout << pos_x << std::endl;
-//        std::cout << pos_y << std::endl;        
+//        std::cout << pos_x << std::endl;
+        std::cout << pos_y << std::endl;        
 //        std::cout << t << std::endl;
 //        std::cout << f_query(s_des, s, f_s).getY() << std::endl;        
 
@@ -378,6 +378,7 @@ int main(int argc, char **argv){
     for (std::vector<int>::size_type i = 0; i < n_samples-1; ++i){
         double s = exp(-alpha/tau_demo * demo_t[i]); //Grab current time and find s
         phase_s.push_back(s); // store phase variable s
+//        std::cout << s << std::endl;
         // calculate f_target(s) 
         f_target_s.push_back(  calc_f_target(tau_demo, demo_acel[i], demo_vel[i], demo_pos[i], demo_start, demo_goal, K, D, s) ); 
 
@@ -387,7 +388,9 @@ int main(int argc, char **argv){
     double tau_des = tau_demo; // Set duration of copying the trajectory
 
     tf::Vector3 r_gripper_start_pos(0,0,0); //Modify this to pr2's starting arm position
-    tf::Vector3 r_gripper_goal_pos(0.2123,-0.06,0); //Modify this to pr2's starting arm position
+    tf::Vector3 r_gripper_goal_pos(0.1223,-0.06,0); //Modify this to pr2's starting arm position
+//    tf::Vector3 r_gripper_goal_pos(0.2123,-0.06,0); //Modify this to pr2's starting arm position
+//    tf::Vector3 r_gripper_goal_pos(0.2223,-0.07,0); //Modify this to pr2's starting arm position
 
     std::vector<tf::Vector3> xyz_waypoints = generate_waypoints(K, D, tau_des, alpha, r_gripper_start_pos, 
                                                                                       r_gripper_goal_pos, 
