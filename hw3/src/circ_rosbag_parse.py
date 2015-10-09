@@ -13,13 +13,14 @@ i_end = 23 # Right arm Joint # 7 Index
 
 
 for topic, msg, t in rosbag.Bag('circular_forward_trajectory.bag').read_messages():
+#for topic, msg, t in rosbag.Bag('reach.bag').read_messages():
     start_time = (float(str(t)) / (nanosecs)) 
     break
 
 
 with rosbag.Bag('output.bag', 'w') as outbag:	
     for topic, msg, t in rosbag.Bag('circular_forward_trajectory.bag').read_messages():
-		
+#    for topic, msg, t in rosbag.Bag('reach.bag').read_messages():		
 		# Convert current time in seconds
         cur_time = (float(str(t)) / (nanosecs)) 
 

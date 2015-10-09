@@ -212,11 +212,9 @@ tf::Vector3 f_query(double s_des, std::vector<double> &s, std::vector<tf::Vector
 }
 
 // Calculate accelerations from eq(6)
-double calculate_acel(double tau, double K, double D, double goal_pos, 
-                        double cur_pos, double cur_vel, double start_pos, double s_des, double fs){
-    double acel = (1/tau) * ( K*(goal_pos- cur_pos) - D*cur_vel - 
-                                    K*(goal_pos - start_pos)*s_des +  
-                                    K*fs);
+double calculate_acel(double tau, double K, double D, double goal_pos, double cur_pos, double cur_vel, double start_pos, double s_des, double fs){
+//    double acel = (1/tau) * ( K*(goal_pos- cur_pos) - D*cur_vel - K*(goal_pos - start_pos)*s_des + K*fs);
+    double acel = (1/tau) * ( K*((goal_pos-cur_pos)-(goal_pos - start_pos)*s_des + fs) - D*cur_vel );
     return acel;
 }
 
@@ -239,32 +237,23 @@ std::vector<tf::Vector3> generate_waypoints(double K, double D, double tau, doub
     double dt = 0.001;
     double t = 0;
     int iters = (int) (tau/dt);
-    double s_cur = exp(alpha/tau*t);
+    double s_cur = exp(-alpha/tau*t);
 
     std::vector<tf::Vector3> h;
     tf::Vector3 vel(0,0,0);       
     tf::Vector3 pos(start_pos.getX(), start_pos.getY(), start_pos.getZ());       
 
     for (std::vector<int>::size_type i = 0; i < iters; ++i){        
-//   for (std::vector<int>::size_type i = 0; i < n_samples-1; ++i){
-//        double dt = demo_t[i+1] - demo_t[i];
-        double s_des = exp(alpha/tau * t);
+//   for (std::vector<int>::size_type i = 1; i < n_samples; ++i){
+//        double dt = demo_t[i] - demo_t[i-1];
+        double s_des = exp(-alpha/tau * t);
 //        double acel_x = (1/tau) * ( K*(goal_pos.getX() - pos.getX()) - D*vel.getX() - 
                                     // K*(goal_pos.getX() - start_pos.getX())*s_des +  
                                     // K*f_query(s_des, s, f_s).getX() );
 
-        double acel_x = calculate_acel(tau, K, D, goal_pos.getX(), 
-                                                  pos.getX(), vel.getX(), 
-                                                  start_pos.getX(), 
-                                                  s_des, f_query(s_des, s, f_s).getX());
-        double acel_y = calculate_acel(tau, K, D, goal_pos.getY(), 
-                                                  pos.getY(), vel.getY(), 
-                                                  start_pos.getY(), 
-                                                  s_des, f_query(s_des, s, f_s).getY());
-        double acel_z = calculate_acel(tau, K, D, goal_pos.getZ(), 
-                                                  pos.getZ(), vel.getZ(), 
-                                                  start_pos.getZ(), 
-                                                  s_des, f_query(s_des, s, f_s).getZ());
+        double acel_x = calculate_acel(tau, K, D, goal_pos.getX(), pos.getX(), vel.getX(), start_pos.getX(), s_des, f_query(s_des, s, f_s).getX());
+        double acel_y = calculate_acel(tau, K, D, goal_pos.getY(), pos.getY(), vel.getY(), start_pos.getY(), s_des, f_query(s_des, s, f_s).getY());
+        double acel_z = calculate_acel(tau, K, D, goal_pos.getZ(), pos.getZ(), vel.getZ(), start_pos.getZ(), s_des, f_query(s_des, s, f_s).getZ());
 
         double vel_x = (acel_x*dt + vel.getX());
         double vel_y = (acel_y*dt + vel.getY());
@@ -274,7 +263,7 @@ std::vector<tf::Vector3> generate_waypoints(double K, double D, double tau, doub
         double pos_y = (1/tau)*vel_y*dt + pos.getY();
         double pos_z = (1/tau)*vel_z*dt + pos.getZ();
 
-        std::cout << pos_x << std::endl;
+//        std::cout << pos_y << std::endl;
 //        std::cout << t << std::endl;
 //        std::cout << f_query(s_des, s, f_s).getY() << std::endl;        
 
@@ -296,7 +285,7 @@ int main(int argc, char **argv){
 
     ROS_INFO("Opening Bag");
     rosbag::Bag bag;    
-    bag.open("circular_forward_trajectory.bag", rosbag::bagmode::Read);
+    bag.open("reach.bag", rosbag::bagmode::Read);
     std::vector<std::string> topics;
     topics.push_back(std::string("visualization_marker")); //Specify topic to read
     rosbag::View view(bag, rosbag::TopicQuery(topics));
@@ -357,11 +346,12 @@ int main(int argc, char **argv){
     // }
 
     // Method 2:
-    for (std::vector<int>::size_type i = 0; i < n_samples-1; ++i){
+    for (std::vector<int>::size_type i = 1; i < n_samples; ++i){
         //std::cout << demo_pos[0].getX() << std::endl;
-        double dt = demo_t[i+1] - demo_t[i];
-        tf::Vector3 v_1 = v1_from_del_x(dt, v_o, demo_pos[i+1], demo_pos[i]);
-        demo_acel.push_back( a_from_v1(dt, v_1, demo_vel[i]) );
+        double dt = demo_t[i] - demo_t[i-1];
+        tf::Vector3 v_1 = v1_from_del_x(dt, v_o, demo_pos[i], demo_pos[i-1]);
+        demo_acel.push_back( a_from_v1(dt, v_1, v_o) );
+        v_o = tf::Vector3(v_1.getX(), v_1.getY(), v_1.getZ());
         demo_vel.push_back(v_1);
     }
 
@@ -370,7 +360,7 @@ int main(int argc, char **argv){
 
     // =======================================================================================================================================
     // Calculate DMP Part 1: get f_target(s)
-    double K = 10.0;
+    double K = 500.0;
     double D = 2*sqrt(K);
     double tau = 10; // in seconds
 
@@ -379,13 +369,13 @@ int main(int argc, char **argv){
     std::vector<tf::Vector3> f_target_s;
     tf::Vector3 demo_start = demo_pos[0]; //start position is set to be the first demo x,y,z position    
     tf::Vector3 demo_goal = demo_pos[n_samples-1]; //goal is set to be the last demo x,y,z position
-    double tau_demo = demo_t[n_samples-2] - demo_t[0]; // duration of demo
-    double alpha = log(0.01); // selected so that s(t) = exp(-alpha/tau_demo)*t converges to 99% when t = tau_demo    
+    double tau_demo = demo_t[n_samples-1] - demo_t[0]; // duration of demo
+    double alpha = -log(0.01); // selected so that s(t) = exp(-alpha/tau_demo)*t converges to 99% when t = tau_demo    
 
 //    std::cout << tau_demo << std::endl;
 //    std::cout << alpha << std::endl;
     for (std::vector<int>::size_type i = 0; i < n_samples-1; ++i){
-        double s = exp(alpha/tau_demo * demo_t[i]); //Grab current time and find s
+        double s = exp(-alpha/tau_demo * demo_t[i]); //Grab current time and find s
         phase_s.push_back(s); // store phase variable s
         // calculate f_target(s) 
         f_target_s.push_back(  calc_f_target(tau_demo, demo_acel[i], demo_vel[i], demo_pos[i], demo_start, demo_goal, K, D, s) ); 
