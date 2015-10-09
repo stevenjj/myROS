@@ -149,7 +149,7 @@ tf::Vector3 calc_f_target(double tau, tf::Vector3 &a_i, tf::Vector3 &v_i, tf::Ve
     double f_target_s_y = ((tau*a_i.getY() + D*v_i.getY())/K) - (pos_goal.getY() - pos_i.getY()) + (pos_goal.getY()-pos_init.getY())*s;    
     double f_target_s_z = ((tau*a_i.getZ() + D*v_i.getZ())/K) - (pos_goal.getZ() - pos_i.getZ()) + (pos_goal.getZ()-pos_init.getZ())*s;
 
-//    std::cout << f_target_s_y << std::endl;
+    //std::cout << f_target_s_y << std::endl;
     return tf::Vector3(f_target_s_x, f_target_s_y, f_target_s_z);
 }
 
@@ -263,7 +263,8 @@ std::vector<tf::Vector3> generate_waypoints(double K, double D, double tau, doub
         double pos_y = (1/tau)*vel_y*dt + pos.getY();
         double pos_z = (1/tau)*vel_z*dt + pos.getZ();
 
-//        std::cout << pos_y << std::endl;
+        std::cout << pos_x << std::endl;
+//        std::cout << pos_y << std::endl;        
 //        std::cout << t << std::endl;
 //        std::cout << f_query(s_des, s, f_s).getY() << std::endl;        
 
@@ -386,21 +387,21 @@ int main(int argc, char **argv){
     double tau_des = tau_demo; // Set duration of copying the trajectory
 
     tf::Vector3 r_gripper_start_pos(0,0,0); //Modify this to pr2's starting arm position
-    tf::Vector3 r_gripper_goal_pos(0.75,0,0); //Modify this to pr2's starting arm position
+    tf::Vector3 r_gripper_goal_pos(0.2123,-0.06,0); //Modify this to pr2's starting arm position
 
-    // std::vector<tf::Vector3> xyz_waypoints = generate_waypoints(K, D, tau_des, alpha, r_gripper_start_pos, 
-    //                                                                                   r_gripper_goal_pos, 
-    //                                                                                   phase_s, 
-    //                                                                                   f_target_s,
-    //                                                                                   n_samples,
-    //                                                                                   demo_t); 
-
-    std::vector<tf::Vector3> xyz_waypoints = generate_waypoints(K, D, tau_des, alpha, demo_pos[0], 
-                                                                                      demo_pos[n_samples-1], 
+    std::vector<tf::Vector3> xyz_waypoints = generate_waypoints(K, D, tau_des, alpha, r_gripper_start_pos, 
+                                                                                      r_gripper_goal_pos, 
                                                                                       phase_s, 
                                                                                       f_target_s,
                                                                                       n_samples,
-                                                                                      demo_t);     
+                                                                                      demo_t); 
+
+    // std::vector<tf::Vector3> xyz_waypoints = generate_waypoints(K, D, tau_des, alpha, demo_pos[0], 
+    //                                                                                   demo_pos[n_samples-1], 
+    //                                                                                   phase_s, 
+    //                                                                                   f_target_s,
+    //                                                                                   n_samples,
+    //                                                                                   demo_t);     
 
 // std::cout << "The y positions before were:" << std::endl;
 //   for (std::vector<int>::size_type i = 0; i < n_samples; ++i){
