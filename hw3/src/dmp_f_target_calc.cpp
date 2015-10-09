@@ -284,7 +284,7 @@ int main(int argc, char **argv){
     ros::Publisher rvizMarkerPub; 
     rvizMarkerPub = n.advertise < visualization_msgs::Marker > ("visualization_marker", 1000);
 
-    ROS_INFO("Opening Bag");
+//    ROS_INFO("Opening Bag");
     rosbag::Bag bag;    
     bag.open("reach.bag", rosbag::bagmode::Read);
     std::vector<std::string> topics;
@@ -336,7 +336,8 @@ int main(int argc, char **argv){
     demo_vel.push_back(v_o);
     
 
-    // Method 1:
+    // Both differentiation method works
+    //Method 1:
     // for (std::vector<int>::size_type i = 0; i < n_samples-1; ++i){
     //     //std::cout << demo_pos[0].getX() << std::endl;
     //     double dt = demo_t[i+1] - demo_t[i];
@@ -477,7 +478,7 @@ int main(int argc, char **argv){
         std::cout << total_markers << std::endl;
     }
 */
-    ROS_INFO("Closing bag");
+ //   ROS_INFO("Closing bag");
     bag.close();
 
 
