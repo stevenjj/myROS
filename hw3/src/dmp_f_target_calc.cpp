@@ -122,7 +122,7 @@ tf::Vector3 vel_from_a(tf::Vector3 &acel_i, tf::Vector3 &vel_i, double dt){
 
 // Method 2 of calculating velocity and accelereation:
 double calc_vel_from_del(double dt, double x1, double x0, double vo){
-    return ( (2*(x1-x0)/dt) - vo);
+    return (x1-x0)/dt;//( (2*(x1-x0)/dt) - vo);
 }
 tf::Vector3 v1_from_del_x(double dt, tf::Vector3 &v_o, tf::Vector3 &pos1, tf::Vector3 &pos0){
     double v1_x = calc_vel_from_del(dt, pos1.getX(), pos0.getX(), v_o.getX() );
@@ -142,16 +142,29 @@ tf::Vector3 a_from_v1(double dt, tf::Vector3 &v_1, tf::Vector3 &v_o) {
     return tf::Vector3(a_x, a_y, a_z);    
 }
 
-// Calculates the forcing function f_target_s
+// Calculates the forcing function f_target_s according to eq(8)
 tf::Vector3 calc_f_target(double tau, tf::Vector3 &a_i, tf::Vector3 &v_i, tf::Vector3 &pos_i, tf::Vector3 &pos_init, 
                     tf::Vector3 &pos_goal, double K, double D, double s){
     double f_target_s_x = ((tau*a_i.getX() + D*v_i.getX())/K) - (pos_goal.getX() - pos_i.getX()) + (pos_goal.getX()-pos_init.getX())*s;
     double f_target_s_y = ((tau*a_i.getY() + D*v_i.getY())/K) - (pos_goal.getY() - pos_i.getY()) + (pos_goal.getY()-pos_init.getY())*s;    
     double f_target_s_z = ((tau*a_i.getZ() + D*v_i.getZ())/K) - (pos_goal.getZ() - pos_i.getZ()) + (pos_goal.getZ()-pos_init.getZ())*s;
 
-
+//    std::cout << f_target_s_y << std::endl;
     return tf::Vector3(f_target_s_x, f_target_s_y, f_target_s_z);
 }
+
+// Calculates the forcing function f_target_s according to eq(5)
+tf::Vector3 calc_f_target2(double tau, tf::Vector3 &a_i, tf::Vector3 &v_i, tf::Vector3 &pos_i, tf::Vector3 &pos_init, 
+                    tf::Vector3 &pos_goal, double K, double D, double s){
+    double f_target_s_x = (-K*(pos_goal.getX() - pos_i.getX()) + D*v_i.getX() + tau*a_i.getX())/(pos_goal.getX()-pos_init.getX());
+    double f_target_s_y = (-K*(pos_goal.getY() - pos_i.getY()) + D*v_i.getY() + tau*a_i.getY())/(pos_goal.getY()-pos_init.getY());
+    double f_target_s_z = (-K*(pos_goal.getZ() - pos_i.getZ()) + D*v_i.getZ() + tau*a_i.getZ())/(pos_goal.getZ()-pos_init.getZ());
+
+//    std::cout << f_target_s_y << std::endl;
+    return tf::Vector3(f_target_s_x, f_target_s_y, f_target_s_z);
+}
+
+
 
 // Fully debugged. Working.
 // Do a linear interpolation between points and return f_target_s
@@ -198,6 +211,7 @@ tf::Vector3 f_query(double s_des, std::vector<double> &s, std::vector<tf::Vector
 
 }
 
+// Calculate accelerations from eq(6)
 double calculate_acel(double tau, double K, double D, double goal_pos, 
                         double cur_pos, double cur_vel, double start_pos, double s_des, double fs){
     double acel = (1/tau) * ( K*(goal_pos- cur_pos) - D*cur_vel - 
@@ -205,6 +219,16 @@ double calculate_acel(double tau, double K, double D, double goal_pos,
                                     K*fs);
     return acel;
 }
+
+
+// Calculate accelerations, but from eq (1)
+double calculate_acel2(double tau, double K, double D, double goal_pos, 
+                        double cur_pos, double cur_vel, double start_pos, double s_des, double fs){
+    double acel = (1/tau) * ( K*(goal_pos- cur_pos) - D*cur_vel - 
+                                    (goal_pos - start_pos)*fs);
+    return acel;
+}
+
 // Calculate the waypoints via integration of the dynamic system
 std::vector<tf::Vector3> generate_waypoints(double K, double D, double tau, double alpha,  tf::Vector3 &start_pos, 
                                                                                            tf::Vector3 &goal_pos,
@@ -212,7 +236,7 @@ std::vector<tf::Vector3> generate_waypoints(double K, double D, double tau, doub
                                                                                            std::vector<tf::Vector3> &f_s,
                                                                                            int n_samples,
                                                                                            std::vector<double> demo_t) {
-    double dt = 0.01;
+    double dt = 0.001;
     double t = 0;
     int iters = (int) (tau/dt);
     double s_cur = exp(alpha/tau*t);
@@ -221,9 +245,9 @@ std::vector<tf::Vector3> generate_waypoints(double K, double D, double tau, doub
     tf::Vector3 vel(0,0,0);       
     tf::Vector3 pos(start_pos.getX(), start_pos.getY(), start_pos.getZ());       
 
-//    for (std::vector<int>::size_type i = 0; i < iters; ++i){        
-   for (std::vector<int>::size_type i = 0; i < n_samples-1; ++i){
-        double dt = demo_t[i+1] - demo_t[i];
+    for (std::vector<int>::size_type i = 0; i < iters; ++i){        
+//   for (std::vector<int>::size_type i = 0; i < n_samples-1; ++i){
+//        double dt = demo_t[i+1] - demo_t[i];
         double s_des = exp(alpha/tau * t);
 //        double acel_x = (1/tau) * ( K*(goal_pos.getX() - pos.getX()) - D*vel.getX() - 
                                     // K*(goal_pos.getX() - start_pos.getX())*s_des +  
@@ -251,6 +275,8 @@ std::vector<tf::Vector3> generate_waypoints(double K, double D, double tau, doub
         double pos_z = (1/tau)*vel_z*dt + pos.getZ();
 
         std::cout << pos_x << std::endl;
+//        std::cout << t << std::endl;
+//        std::cout << f_query(s_des, s, f_s).getY() << std::endl;        
 
         pos = tf::Vector3(pos_x, pos_y, pos_z);
         vel = tf::Vector3(vel_x, vel_y, vel_z);        
@@ -259,9 +285,6 @@ std::vector<tf::Vector3> generate_waypoints(double K, double D, double tau, doub
 
         t += dt;     
    }
-
-
-    h.push_back(tf::Vector3(0,0,0));
     return h;
 }
 
@@ -389,10 +412,10 @@ int main(int argc, char **argv){
                                                                                       n_samples,
                                                                                       demo_t);     
 
-//  std::cout << "The x positions before were:" << std::endl;
-//    for (std::vector<int>::size_type i = 0; i < n_samples; ++i){
-//        std::cout<< demo_pos[i].getX() << std::endl;
-//    }    
+// std::cout << "The y positions before were:" << std::endl;
+//   for (std::vector<int>::size_type i = 0; i < n_samples; ++i){
+//       std::cout<< demo_pos[i].getY() << std::endl;
+//   }    
 
 /*
    // Define Reference quaternion to be the x-axis.
