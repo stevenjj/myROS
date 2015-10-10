@@ -38,6 +38,7 @@ struct DMP_plan_traj{
 struct demo_traj{
     std::vector<double> time;
     std::vector<tf::Vector3> pos;
+    int n_samples; // Number of samples
 };
 
 
@@ -290,10 +291,11 @@ std::vector<tf::Vector3> generate_waypoints(double K, double D, double tau, doub
         double pos_y = (1/tau)*vel_y*dt + pos.getY();
         double pos_z = (1/tau)*vel_z*dt + pos.getZ();
 
-//        std::cout << pos_x << std::endl;
-        std::cout << pos_y << std::endl;        
-//        std::cout << t << std::endl;
-//        std::cout << f_query(s_des, s, f_s).getY() << std::endl;        
+        // std::cout << pos_x ;
+        // std::cout << " " ;
+        // std::cout << pos_y << std::endl;        
+       // std::cout << t << std::endl;
+       // std::cout << f_query(s_des, s, f_s).getY() << std::endl;        
 
         pos = tf::Vector3(pos_x, pos_y, pos_z);
         vel = tf::Vector3(vel_x, vel_y, vel_z);        
@@ -305,13 +307,48 @@ std::vector<tf::Vector3> generate_waypoints(double K, double D, double tau, doub
     return h;
 }
 
-void obtain_pos_data_from_bag(){
+void print_demo_traj(demo_traj &demo_data){
+  for (std::vector<int>::size_type i = 0; i < demo_data.n_samples; ++i){
+      std::cout<< demo_data.pos[i].getX();
+      std::cout<< " "; 
+      std::cout<< demo_data.pos[i].getY() << std::endl;
+  }    
+}
+
+void obtain_pos_data_from_bag(demo_traj &demo_data){
 //    ROS_INFO("Opening Bag");
     rosbag::Bag bag;    
     bag.open("reach.bag", rosbag::bagmode::Read);
     std::vector<std::string> topics;
     topics.push_back(std::string("visualization_marker")); //Specify topic to read
     rosbag::View view(bag, rosbag::TopicQuery(topics));
+
+    // =======================================================================================================================================
+    // Parse rosbag
+    int start_time_s = 0;
+    double start_nsec = 0;
+    int n_samples = 0;
+
+    // Go to the trajectory bag for the first time.
+    foreach(rosbag::MessageInstance const m, view){       
+        visualization_msgs::Marker::ConstPtr p = m.instantiate<visualization_msgs::Marker>();
+        // Store marker x,y,z cartesian pose.        
+        tf::Vector3 marker_cartesian_pose( p->pose.position.x,  p->pose.position.y,  p->pose.position.z);
+        demo_data.pos.push_back(marker_cartesian_pose);
+
+        // Store time variable;
+        if (n_samples == 0) {
+            start_time_s = p->header.stamp.sec; //Obtain first time stamp
+            start_nsec = (double) (p->header.stamp.nsec)/pow(10,9);    // Bring nanosec to seconds.     
+        }
+        double sec = (double) (p->header.stamp.sec - start_time_s); // Subtract time stamp to get sensible seconds in int then convert to double
+        double nsec = (double) (p->header.stamp.nsec)/pow(10,9);    // Bring nanosec to seconds.     
+        demo_data.time.push_back(sec + nsec - start_nsec); // Store the true time stamp
+
+        // Count total number of markers in the rosbag
+        n_samples++; 
+    }
+    demo_data.n_samples = n_samples;
     bag.close(); 
 }
 
@@ -326,6 +363,11 @@ int main(int argc, char **argv){
 
     DMP_param reaching_dmp;
     demo_traj reaching_demo_traj;
+
+
+    obtain_pos_data_from_bag(reaching_demo_traj);
+
+    print_demo_traj(reaching_demo_traj);
 
 //    ROS_INFO("Opening Bag");
     rosbag::Bag bag;    
@@ -450,10 +492,12 @@ int main(int argc, char **argv){
     //                                                                                   n_samples,
     //                                                                                   demo_t);     
 
-// std::cout << "The y positions before were:" << std::endl;
-//   for (std::vector<int>::size_type i = 0; i < n_samples; ++i){
-//       std::cout<< demo_pos[i].getY() << std::endl;
-//   }    
+//std::cout << "The xy positions before were:" << std::endl;
+  // for (std::vector<int>::size_type i = 0; i < n_samples; ++i){
+  //     std::cout<< demo_pos[i].getX();
+  //     std::cout<< " "; 
+  //     std::cout<< demo_pos[i].getY() << std::endl;
+  // }    
 
 /*
    // Define Reference quaternion to be the x-axis.
