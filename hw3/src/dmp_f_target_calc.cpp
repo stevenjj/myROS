@@ -14,6 +14,26 @@
 
 #define foreach BOOST_FOREACH
 
+
+struct DMP_param{
+    double K;
+    double D;
+    double tau_demo;
+    double alpha;
+
+    std::vector<tf::Vector3> demo_pos;
+    std::vector<tf::Vector3> demo_vel;
+    std::vector<tf::Vector3> demo_acel;    
+
+    std::vector<double> s;
+    std::vector<tf::Vector3> f_s;
+}; // No global objects initialized
+
+// DMP params
+// K, D, s, demo_tau, demo_t, demo_pos, demo_vel, demo_acel f(s)
+
+
+
 void pub_recorded_marker(ros::Publisher &marker_pub, visualization_msgs::Marker::ConstPtr &rosbag_marker, 
                          int index, int total_markers, tf::Transform &translate_to_main, tf::Transform &rotate_to_main ){
 
@@ -94,14 +114,14 @@ void pub_recorded_marker(ros::Publisher &marker_pub, visualization_msgs::Marker:
 
 
 
-// METHOD 1 of velocity and acceleration
+// METHOD 1 of calculating velocity and acceleration - Confirmed to work
 // Calculates constant acceleration between two points x0, x1 and factors in velocity between them.
-double calc_acel(double x1, double xo, double vo, double dt){
+double calc_acel(const double x1, const double xo, const double vo, const double dt){
     return ( (x1 - xo - (vo*dt))/pow(dt,2) );
 }
 
 // Returns acceleration for x,y,z
-tf::Vector3 constant_a(tf::Vector3 &pos_next_i, tf::Vector3 &pos_i, tf::Vector3 &vel_i, double dt){
+tf::Vector3 constant_a(const tf::Vector3 &pos_next_i, const tf::Vector3 &pos_i, const tf::Vector3 &vel_i, const double dt){
     double a_x = calc_acel( pos_next_i.getX(), pos_i.getX(), vel_i.getX(), dt);
     double a_y = calc_acel( pos_next_i.getY(), pos_i.getY(), vel_i.getY(), dt);
     double a_z = calc_acel( pos_next_i.getZ(), pos_i.getZ(), vel_i.getZ(), dt);
@@ -119,8 +139,11 @@ tf::Vector3 vel_from_a(tf::Vector3 &acel_i, tf::Vector3 &vel_i, double dt){
     double v_z = calc_vel( acel_i.getZ(), vel_i.getZ(), dt);
     return tf::Vector3(v_x, v_y, v_z);
 }
+// End of Method 1 
 
-// Method 2 of calculating velocity and accelereation:
+
+// Method 2 of calculating velocity and accelereation - Confirmed to work.
+// Naive dx/dt and dv/dt implementation
 double calc_vel_from_del(double dt, double x1, double x0, double vo){
     return (x1-x0)/dt;//( (2*(x1-x0)/dt) - vo);
 }
@@ -141,6 +164,7 @@ tf::Vector3 a_from_v1(double dt, tf::Vector3 &v_1, tf::Vector3 &v_o) {
     double a_z = calc_a_from_v1(dt, v_1.getZ(), v_o.getZ() );
     return tf::Vector3(a_x, a_y, a_z);    
 }
+// End of Method 2
 
 // Calculates the forcing function f_target_s according to eq(8)
 tf::Vector3 calc_f_target(double tau, tf::Vector3 &a_i, tf::Vector3 &v_i, tf::Vector3 &pos_i, tf::Vector3 &pos_init, 
@@ -166,8 +190,8 @@ tf::Vector3 calc_f_target2(double tau, tf::Vector3 &a_i, tf::Vector3 &v_i, tf::V
 
 
 
-// Fully debugged. Working.
-// Do a linear interpolation between points and return f_target_s
+// DMP f(s) linear interpolator from 1 demonstration in f_target(s) // Fully debugged. Working.
+//  Do a linear interpolation between points and return f_target_s
 tf::Vector3 f_query(double s_des, std::vector<double> &s, std::vector<tf::Vector3> &f_s){
     int i = 0;
     double s_lowerbound = 0;
@@ -203,27 +227,21 @@ tf::Vector3 f_query(double s_des, std::vector<double> &s, std::vector<tf::Vector
     }
 
     // Reached the end of f(s). Return the last element of f(s)
-    //    std::cout << i << std::endl;
     //    std::cout << f_s[i-1].getX() << std::endl; // Since we did a i++ before ending the loop
-
-//    return tf::Vector3(0,0,0);
     return tf::Vector3(f_s[i-1].getX(), f_s[i-1].getY(), f_s[i-1].getZ());
-
 }
 
-// Calculate accelerations from eq(6)
+// Calculate accelerations from eq(6) Pastor (2009) - Confirmed to work.
 double calculate_acel(double tau, double K, double D, double goal_pos, double cur_pos, double cur_vel, double start_pos, double s_des, double fs){
 //    double acel = (1/tau) * ( K*(goal_pos- cur_pos) - D*cur_vel - K*(goal_pos - start_pos)*s_des + K*fs);
     double acel = (1/tau) * ( K*((goal_pos-cur_pos)-(goal_pos - start_pos)*s_des + fs) - D*cur_vel );
     return acel;
 }
 
-
-// Calculate accelerations, but from eq (1)
+// Calculate accelerations, but from eq (1) Pastor (2009) - Not confirmed to work.
 double calculate_acel2(double tau, double K, double D, double goal_pos, 
                         double cur_pos, double cur_vel, double start_pos, double s_des, double fs){
-    double acel = (1/tau) * ( K*(goal_pos- cur_pos) - D*cur_vel - 
-                                    (goal_pos - start_pos)*fs);
+    double acel = (1/tau) * ( K*(goal_pos- cur_pos) - D*cur_vel - (goal_pos - start_pos)*fs);
     return acel;
 }
 
@@ -283,6 +301,14 @@ int main(int argc, char **argv){
     ros::NodeHandle n;
     ros::Publisher rvizMarkerPub; 
     rvizMarkerPub = n.advertise < visualization_msgs::Marker > ("visualization_marker", 1000);
+
+
+// DMP params
+// K, D, s, demo_tau, demo_t, demo_pos, demo_vel, demo_acel f(s)
+
+// Task: create 2 functions
+// DMP learning input(DMP Structure) and creates K, D, s, f(s)
+// DMP Plan input (DMP Structure, x_o, g, tau, dt) returns time stamped poses. 
 
 //    ROS_INFO("Opening Bag");
     rosbag::Bag bag;    
