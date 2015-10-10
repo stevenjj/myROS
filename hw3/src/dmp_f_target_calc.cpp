@@ -471,7 +471,7 @@ void dmp_learning(const double K, const double D, double alpha, const DEMO_traj 
 }
 
 void dmp_planning(double tau, double dt_des, const tf::Vector3 &start_pos, const tf::Vector3 &goal_pos, 
-                                                 const DMP_param &dmp_to_use, Waypoints_traj waypoints){
+                                                 const DMP_param &dmp_to_use, Waypoints_traj &waypoints){
 
         double K = dmp_to_use.K;
         double D = dmp_to_use.D;        
@@ -504,9 +504,9 @@ void dmp_planning(double tau, double dt_des, const tf::Vector3 &start_pos, const
         double pos_y = (1/tau)*vel_y*dt + pos.getY();
         double pos_z = (1/tau)*vel_z*dt + pos.getZ();
 
-        std::cout << pos_x ;
-        std::cout << " " ;
-        std::cout << pos_y << std::endl;        
+        // std::cout << pos_x ;
+        // std::cout << " " ;
+        // std::cout << pos_y << std::endl;        
 
         pos = tf::Vector3(pos_x, pos_y, pos_z);
         vel = tf::Vector3(vel_x, vel_y, vel_z);        
@@ -517,6 +517,33 @@ void dmp_planning(double tau, double dt_des, const tf::Vector3 &start_pos, const
     }
 
 
+ }
+
+ void print_waypoints(Waypoints_traj &waypoints) {
+    int n = 0;
+    for(std::vector<double>::iterator t_i = waypoints.time.begin(); t_i != waypoints.time.end(); ++t_i) {
+        n++;    // Count number of elements in waypoints    
+    }    
+    
+    std::cout << "time x y z" << std::endl;
+    
+    for (std::vector<int>::size_type i = 0; i < n; ++i){
+        std::cout << waypoints.time[i];
+        std::cout << " " ;
+        std::cout << waypoints.pos[i].getX();
+        std::cout << " " ;
+        std::cout << waypoints.pos[i].getY();        
+        std::cout << " " ;
+        std::cout << waypoints.pos[i].getZ() << std::endl;                  
+    }    
+
+    // for(std::vector<tf::Vector3>::iterator pos_i = waypoints.pos.begin(); pos_i != waypoints.pos.end(); ++pos_i) {
+    //     std::cout << (*pos_i).getX();
+    //     std::cout << " " ;
+    //     std::cout << (*pos_i).getY();        
+    //     std::cout << " " ;
+    //     std::cout << (*pos_i).getZ() << std::endl;                
+    // }
  }
 
 
@@ -552,6 +579,9 @@ int main(int argc, char **argv){
 
     double tau_des = reaching_dmp.tau_demo; // Set duration of copying the trajectory    
     dmp_planning(tau_des, dt_des, r_gripper_start_pos, r_gripper_goal_pos, reaching_dmp, des_waypoints);
+
+
+    print_waypoints(des_waypoints);
 
     // std::vector<tf::Vector3> xyz_waypoints = generate_waypoints(K, D, tau_des, alpha, r_gripper_start_pos, 
     //                                                                                   r_gripper_goal_pos, 
