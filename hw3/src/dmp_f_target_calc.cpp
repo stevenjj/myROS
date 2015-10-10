@@ -14,6 +14,8 @@
 
 #define foreach BOOST_FOREACH
 
+double getPhase(double alpha, double tau, double t);
+
 struct DMP_param{
     double K;
     double D;
@@ -579,7 +581,6 @@ int main(int argc, char **argv){
 
     double tau_des = reaching_dmp.tau_demo; // Set duration of copying the trajectory    
     dmp_planning(tau_des, dt_des, r_gripper_start_pos, r_gripper_goal_pos, reaching_dmp, des_waypoints);
-
 
     print_waypoints(des_waypoints);
 
