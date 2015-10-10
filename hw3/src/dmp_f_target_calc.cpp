@@ -316,6 +316,60 @@ std::vector<tf::Vector3> generate_waypoints(double K, double D, double tau, doub
     return h;
 }
 
+
+// Calculate the waypoints via integration of the dynamic system
+std::vector<tf::Vector3> test_dmp(double K, double D, double tau, double alpha,  tf::Vector3 &start_pos, 
+                                                                                           tf::Vector3 &goal_pos,
+                                                                                           std::vector<double> &s, 
+                                                                                           std::vector<tf::Vector3> &f_s,
+                                                                                           int n_samples,
+                                                                                           std::vector<double> demo_t) {
+    double dt = 0.001;
+    double t = 0;
+    int iters = (int) (tau/dt);
+    double s_cur = exp(-alpha/tau*t);
+
+    std::vector<tf::Vector3> h;
+    tf::Vector3 vel(0,0,0);       
+    tf::Vector3 pos(start_pos.getX(), start_pos.getY(), start_pos.getZ());       
+
+    // for (std::vector<int>::size_type i = 0; i < iters; ++i){        
+    for (std::vector<int>::size_type i = 1; i < n_samples; ++i){
+       double dt = demo_t[i] - demo_t[i-1];
+        double s_des = exp(-alpha/tau * t);
+//        double acel_x = (1/tau) * ( K*(goal_pos.getX() - pos.getX()) - D*vel.getX() - 
+                                    // K*(goal_pos.getX() - start_pos.getX())*s_des +  
+                                    // K*f_query(s_des, s, f_s).getX() );
+
+        double acel_x = calculate_acel(tau, K, D, goal_pos.getX(), pos.getX(), vel.getX(), start_pos.getX(), s_des, f_query(s_des, s, f_s).getX());
+        double acel_y = calculate_acel(tau, K, D, goal_pos.getY(), pos.getY(), vel.getY(), start_pos.getY(), s_des, f_query(s_des, s, f_s).getY());
+        double acel_z = calculate_acel(tau, K, D, goal_pos.getZ(), pos.getZ(), vel.getZ(), start_pos.getZ(), s_des, f_query(s_des, s, f_s).getZ());
+
+        double vel_x = (acel_x*dt + vel.getX());
+        double vel_y = (acel_y*dt + vel.getY());
+        double vel_z = (acel_z*dt + vel.getZ());
+
+        double pos_x = (1/tau)*vel_x*dt + pos.getX();
+        double pos_y = (1/tau)*vel_y*dt + pos.getY();
+        double pos_z = (1/tau)*vel_z*dt + pos.getZ();
+
+        std::cout << pos_x ;
+        std::cout << " " ;
+        std::cout << pos_y << std::endl;        
+       // std::cout << t << std::endl;
+       // std::cout << f_query(s_des, s, f_s).getY() << std::endl;        
+
+        pos = tf::Vector3(pos_x, pos_y, pos_z);
+        vel = tf::Vector3(vel_x, vel_y, vel_z);        
+
+        h.push_back(pos);
+
+        t += dt;     
+   }
+    return h;
+}
+
+
 void print_demo_traj(DEMO_traj &demo_data){
   for (std::vector<int>::size_type i = 0; i < demo_data.n_samples; ++i){
       std::cout<< demo_data.pos[i].getX();
@@ -404,29 +458,6 @@ void dmp_learning(const double K, const double D, double alpha, const DEMO_traj 
     dmp_store.tau_demo = tau_demo; 
     dmp_store.n_samples = n_samples;
 
-//     std::vector<tf::Vector3> demo_t;
-//     std::vector<tf::Vector3> demo_pos;
-//     std::vector<tf::Vector3> demo_vel;
-//     std::vector<tf::Vector3> demo_acel;    
-
-//     std::vector<double> s;
-//     std::vector<tf::Vector3> f_s;
-
-//     // Calculate DMP Part 1: get f_target(s)
-//     double K = 500.0;
-//     double D = 2*sqrt(K);
-//     double tau = 10; // in seconds
-
-//     std::vector<double> phase_s;
-//     std::vector<tf::Vector3> f_target_s;
-//     tf::Vector3 demo_start = demo_pos[0]; //start position is set to be the first demo x,y,z position    
-//     tf::Vector3 demo_goal = demo_pos[n_samples-1]; //goal is set to be the last demo x,y,z position
-//     double tau_demo = demo_t[n_samples-1] - demo_t[0]; // duration of demo
-//     double alpha = -log(0.01); // selected so that s(t) = exp(-alpha/tau_demo)*t converges to 99% when t = tau_demo    
-
-// //    std::cout << tau_demo << std::endl;
-// //    std::cout << alpha << std::endl;
-
     for (std::vector<int>::size_type i = 0; i < (n_samples - 1); ++i){
         double s = getPhase(alpha, tau_demo, traj_demo_to_learn.time[i]); //Grab current time and find s                
         dmp_store.s.push_back(s); // store phase variable s
@@ -437,8 +468,6 @@ void dmp_learning(const double K, const double D, double alpha, const DEMO_traj 
                                                           traj_demo_to_learn.start_pos,
                                                           traj_demo_to_learn.goal_pos,
                                                           K, D, s) ) ; 
-
-
      }
 
 }
@@ -457,66 +486,36 @@ int main(int argc, char **argv){
     calculate_vel_acel_data(reaching_demo_traj); // Calculate velocities and accelerations
 
 
-    std::vector<double> demo_t = reaching_demo_traj.time;
-    std::vector<tf::Vector3> demo_pos = reaching_demo_traj.pos;
-    int n_samples = reaching_demo_traj.n_samples;
 
-
-
-    std::vector<tf::Vector3> demo_vel = reaching_demo_traj.vel;
-    std::vector<tf::Vector3> demo_acel = reaching_demo_traj.acel;
-
-    // =======================================================================================================================================
 
     // =======================================================================================================================================
     // Calculate DMP Part 1: get f_target(s)
     double K = 500.0;
     double D = 2*sqrt(K);
-    double tau = 10; // in seconds
-
-
-    std::vector<double> phase_s;
-    std::vector<tf::Vector3> f_target_s;
-    tf::Vector3 demo_start = demo_pos[0]; //start position is set to be the first demo x,y,z position    
-    tf::Vector3 demo_goal = demo_pos[n_samples-1]; //goal is set to be the last demo x,y,z position
-    double tau_demo = demo_t[n_samples-1] - demo_t[0]; // duration of demo
     double alpha = -log(0.01); // selected so that s(t) = exp(-alpha/tau_demo)*t converges to 99% when t = tau_demo    
-
-//    std::cout << tau_demo << std::endl;
-//    std::cout << alpha << std::endl;
-    for (std::vector<int>::size_type i = 0; i < n_samples-1; ++i){
-
-        double s = getPhase(alpha, tau_demo, demo_t[i]);        
-//        double s = exp(-alpha/tau_demo * demo_t[i]); //Grab current time and find s
-        phase_s.push_back(s); // store phase variable s
-//        std::cout << s << std::endl;
-        // calculate f_target(s) 
-        f_target_s.push_back(  calc_f_target(tau_demo, demo_acel[i], demo_vel[i], demo_pos[i], demo_start, demo_goal, K, D, s) ); 
-
-    }
-
-//    double K = 500.0;
-//    double D = 2*sqrt(K);
-//    double alpha = -log(0.01); // selected so that s(t) = exp(-alpha/tau_demo)*t converges to 99% when t = tau_demo    
     dmp_learning(K, D, alpha, reaching_demo_traj, reaching_dmp); // Learn the dmp of reaching demo
 
-    // =======================================================================================================================================
-    // Calculate DMP part 2: Generate xyz waypoints
-    double tau_des = tau_demo; // Set duration of copying the trajectory
+    double tau_des = reaching_dmp.tau_demo; // Set duration of copying the trajectory    
 
     tf::Vector3 r_gripper_start_pos(0,0,0); //Modify this to pr2's starting arm position
     tf::Vector3 r_gripper_goal_pos(0.1223,-0.06,0); //Modify this to pr2's starting arm position
 //    tf::Vector3 r_gripper_goal_pos(0.2123,-0.06,0); //Modify this to pr2's starting arm position
 //    tf::Vector3 r_gripper_goal_pos(0.2223,-0.07,0); //Modify this to pr2's starting arm position
 
-
     std::vector<tf::Vector3> xyz_waypoints = generate_waypoints(K, D, tau_des, alpha, r_gripper_start_pos, 
                                                                                       r_gripper_goal_pos, 
-                                                                                      phase_s, 
+                                                                                      reaching_dmp.s, 
                                                                                       reaching_dmp.f_s,
-                                                                                      n_samples,
-                                                                                      demo_t); 
+                                                                                      reaching_dmp.n_samples,
+                                                                                      reaching_demo_traj.time); 
 
+
+    // std::vector<tf::Vector3> xyz_waypoints = generate_waypoints(K, D, tau_des, alpha, reaching_demo_traj.start_pose, 
+    //                                                                                   reaching_demo_traj.goal_pose, 
+    //                                                                                   reaching_dmp.s, 
+    //                                                                                   reaching_dmp.f_s,
+    //                                                                                   reaching_dmp.n_samples,
+    //                                                                                   reaching_demo_traj.time); 
 
     // std::vector<tf::Vector3> xyz_waypoints = generate_waypoints(K, D, tau_des, alpha, r_gripper_start_pos, 
     //                                                                                   r_gripper_goal_pos, 
