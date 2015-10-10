@@ -520,7 +520,6 @@ void dmp_planning(double tau, double dt_des, const tf::Vector3 &start_pos, const
  }
 
 
-
 int main(int argc, char **argv){
     ros::init (argc, argv, "dmp_f_target_calc");
     ros::NodeHandle n;
@@ -540,9 +539,8 @@ int main(int argc, char **argv){
     double K = 500.0;
     double D = 2*sqrt(K);
     double alpha = -log(0.01); // selected so that s(t) = exp(-alpha/tau_demo)*t converges to 99% when t = tau_demo    
+    
     dmp_learning(K, D, alpha, reaching_demo_traj, reaching_dmp); // Learn the dmp of reaching demo
-
-    double tau_des = reaching_dmp.tau_demo; // Set duration of copying the trajectory    
 
     tf::Vector3 r_gripper_start_pos(0,0,0); //Modify this to pr2's starting arm position
     tf::Vector3 r_gripper_goal_pos(0.1223,-0.06,0); //Modify this to pr2's starting arm position
@@ -552,11 +550,8 @@ int main(int argc, char **argv){
     Waypoints_traj des_waypoints;
     double dt_des = 0.001;
 
-    // dmp_planning(tau_des, dt_des, r_gripper_start_pos, r_gripper_goal_pos, reaching_dmp, des_waypoints);
-
-
-
-
+    double tau_des = reaching_dmp.tau_demo; // Set duration of copying the trajectory    
+    dmp_planning(tau_des, dt_des, r_gripper_start_pos, r_gripper_goal_pos, reaching_dmp, des_waypoints);
 
     // std::vector<tf::Vector3> xyz_waypoints = generate_waypoints(K, D, tau_des, alpha, r_gripper_start_pos, 
     //                                                                                   r_gripper_goal_pos, 
