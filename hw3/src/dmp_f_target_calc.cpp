@@ -38,6 +38,8 @@ struct DMP_plan_traj{
 struct demo_traj{
     std::vector<double> time;
     std::vector<tf::Vector3> pos;
+    std::vector<tf::Vector3> vel;
+    std::vector<tf::Vector3> acel;        
     int n_samples; // Number of samples
 };
 
@@ -291,9 +293,9 @@ std::vector<tf::Vector3> generate_waypoints(double K, double D, double tau, doub
         double pos_y = (1/tau)*vel_y*dt + pos.getY();
         double pos_z = (1/tau)*vel_z*dt + pos.getZ();
 
-        // std::cout << pos_x ;
-        // std::cout << " " ;
-        // std::cout << pos_y << std::endl;        
+        std::cout << pos_x ;
+        std::cout << " " ;
+        std::cout << pos_y << std::endl;        
        // std::cout << t << std::endl;
        // std::cout << f_query(s_des, s, f_s).getY() << std::endl;        
 
@@ -352,6 +354,32 @@ void obtain_pos_data_from_bag(demo_traj &demo_data){
     bag.close(); 
 }
 
+void calculate_vel_acel_data(demo_traj &demo_data){
+    tf::Vector3 v_o(0,0,0);
+    demo_data.vel.push_back(v_o);
+    
+//    Both differentiation method works
+//    Method 1:
+    // for (std::vector<int>::size_type i = 0; i < demo_data.n_samples-1; ++i){
+    //     //std::cout << demo_pos[0].getX() << std::endl;
+    //     double dt = demo_data.time[i+1] - demo_data.time[i];
+    //     // Calculate constant acceleration(i) to get xo to x1 and add it to acceleration vector.
+    //     demo_data.acel.push_back( constant_a(demo_data.pos[i+1], demo_data.pos[i], demo_data.vel[i], dt) );
+    //     // Calculate velocity(i+1) and add it to velocity vector.
+    //     demo_data.vel.push_back( vel_from_a(demo_data.acel[i], demo_data.vel[i], dt) );
+    // }
+
+    // Method 2:
+    for (std::vector<int>::size_type i = 1; i < demo_data.n_samples; ++i){
+        //std::cout << demo_pos[0].getX() << std::endl;
+        double dt = demo_data.time[i] - demo_data.time[i-1];
+        tf::Vector3 v_1 = v1_from_del_x(dt, v_o, demo_data.pos[i], demo_data.pos[i-1]);
+        demo_data.acel.push_back( a_from_v1(dt, v_1, v_o) );
+        v_o = tf::Vector3(v_1.getX(), v_1.getY(), v_1.getZ());
+        demo_data.vel.push_back(v_1);
+    }
+
+}
 
 int main(int argc, char **argv){
     ros::init (argc, argv, "dmp_f_target_calc");
@@ -363,52 +391,53 @@ int main(int argc, char **argv){
 
     DMP_param reaching_dmp;
     demo_traj reaching_demo_traj;
-    obtain_pos_data_from_bag(reaching_demo_traj);
+    obtain_pos_data_from_bag(reaching_demo_traj); // Grab bag data
 
-    print_demo_traj(reaching_demo_traj);
-
+//    print_demo_traj(reaching_demo_traj); //print out recorded trajectories
+    calculate_vel_acel_data(reaching_demo_traj); // Calculate velocities and accelerations
 
 
     std::vector<double> demo_t = reaching_demo_traj.time;
     std::vector<tf::Vector3> demo_pos = reaching_demo_traj.pos;
     int n_samples = reaching_demo_traj.n_samples;
 
-    std::vector<tf::Vector3> demo_vel;
-    std::vector<tf::Vector3> demo_acel;
 
 
+    std::vector<tf::Vector3> demo_vel = reaching_demo_traj.vel;
+    std::vector<tf::Vector3> demo_acel = reaching_demo_traj.acel;
 
-    // =======================================================================================================================================
-    // Calculate velocity and acceleration
-        // Note some math functions:
-        //        std::cout << pow(10,2) << std::endl;
-        //        std::cout << log(1) << std::endl; 
-        //        std::cout << exp(1) << std::endl;
-    // Initialize Velocity(0) to 0    
-    tf::Vector3 v_o(0,0,0);
-    demo_vel.push_back(v_o);
+
+    // // =======================================================================================================================================
+    // // Calculate velocity and acceleration
+    //     // Note some math functions:
+    //     //        std::cout << pow(10,2) << std::endl;
+    //     //        std::cout << log(1) << std::endl; 
+    //     //        std::cout << exp(1) << std::endl;
+    // // Initialize Velocity(0) to 0    
+    // tf::Vector3 v_o(0,0,0);
+    // demo_vel.push_back(v_o);
     
 
-    // Both differentiation method works
-    //Method 1:
-    // for (std::vector<int>::size_type i = 0; i < n_samples-1; ++i){
-    //     //std::cout << demo_pos[0].getX() << std::endl;
-    //     double dt = demo_t[i+1] - demo_t[i];
-    //     // Calculate constant acceleration(i) to get xo to x1 and add it to acceleration vector.
-    //     demo_acel.push_back( constant_a(demo_pos[i+1], demo_pos[i], demo_vel[i], dt) );
-    //     // Calculate velocity(i+1) and add it to velocity vector.
-    //     demo_vel.push_back( vel_from_a(demo_acel[i], demo_vel[i], dt) );
-    // }
+    // // Both differentiation method works
+    // //Method 1:
+    // // for (std::vector<int>::size_type i = 0; i < n_samples-1; ++i){
+    // //     //std::cout << demo_pos[0].getX() << std::endl;
+    // //     double dt = demo_t[i+1] - demo_t[i];
+    // //     // Calculate constant acceleration(i) to get xo to x1 and add it to acceleration vector.
+    // //     demo_acel.push_back( constant_a(demo_pos[i+1], demo_pos[i], demo_vel[i], dt) );
+    // //     // Calculate velocity(i+1) and add it to velocity vector.
+    // //     demo_vel.push_back( vel_from_a(demo_acel[i], demo_vel[i], dt) );
+    // // }
 
-    // Method 2:
-    for (std::vector<int>::size_type i = 1; i < n_samples; ++i){
-        //std::cout << demo_pos[0].getX() << std::endl;
-        double dt = demo_t[i] - demo_t[i-1];
-        tf::Vector3 v_1 = v1_from_del_x(dt, v_o, demo_pos[i], demo_pos[i-1]);
-        demo_acel.push_back( a_from_v1(dt, v_1, v_o) );
-        v_o = tf::Vector3(v_1.getX(), v_1.getY(), v_1.getZ());
-        demo_vel.push_back(v_1);
-    }
+    // // Method 2:
+    // for (std::vector<int>::size_type i = 1; i < n_samples; ++i){
+    //     //std::cout << demo_pos[0].getX() << std::endl;
+    //     double dt = demo_t[i] - demo_t[i-1];
+    //     tf::Vector3 v_1 = v1_from_del_x(dt, v_o, demo_pos[i], demo_pos[i-1]);
+    //     demo_acel.push_back( a_from_v1(dt, v_1, v_o) );
+    //     v_o = tf::Vector3(v_1.getX(), v_1.getY(), v_1.getZ());
+    //     demo_vel.push_back(v_1);
+    // }
 
 
     // =======================================================================================================================================
