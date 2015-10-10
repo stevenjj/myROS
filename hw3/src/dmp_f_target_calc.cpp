@@ -363,52 +363,20 @@ int main(int argc, char **argv){
 
     DMP_param reaching_dmp;
     demo_traj reaching_demo_traj;
-
-
     obtain_pos_data_from_bag(reaching_demo_traj);
 
     print_demo_traj(reaching_demo_traj);
 
-//    ROS_INFO("Opening Bag");
-    rosbag::Bag bag;    
-    bag.open("reach.bag", rosbag::bagmode::Read);
-    std::vector<std::string> topics;
-    topics.push_back(std::string("visualization_marker")); //Specify topic to read
-    rosbag::View view(bag, rosbag::TopicQuery(topics));
 
 
-    // =======================================================================================================================================
-    // Parse rosbag
-    std::vector<double> demo_t;
-    std::vector<tf::Vector3> demo_pos;
+    std::vector<double> demo_t = reaching_demo_traj.time;
+    std::vector<tf::Vector3> demo_pos = reaching_demo_traj.pos;
+    int n_samples = reaching_demo_traj.n_samples;
+
     std::vector<tf::Vector3> demo_vel;
     std::vector<tf::Vector3> demo_acel;
 
-    int start_time_s = 0;
-    double start_nsec = 0;
-    int n_samples = 0;
 
-    // Go to the trajectory bag for the first time.
-    foreach(rosbag::MessageInstance const m, view){       
-        visualization_msgs::Marker::ConstPtr p = m.instantiate<visualization_msgs::Marker>();
-        // Store marker x,y,z cartesian pose.        
-        tf::Vector3 marker_cartesian_pose( p->pose.position.x,  p->pose.position.y,  p->pose.position.z);
-        demo_pos.push_back(marker_cartesian_pose);
-
-        // Store time variable;
-        if (n_samples == 0) {
-            start_time_s = p->header.stamp.sec; //Obtain first time stamp
-            start_nsec = (double) (p->header.stamp.nsec)/pow(10,9);    // Bring nanosec to seconds.     
-        }
-        double sec = (double) (p->header.stamp.sec - start_time_s); // Subtract time stamp to get sensible seconds in int then convert to double
-        double nsec = (double) (p->header.stamp.nsec)/pow(10,9);    // Bring nanosec to seconds.     
-        demo_t.push_back(sec + nsec - start_nsec); // Store the true time stamp
-
-        // Count total number of markers in the rosbag
-        n_samples++; 
-    }    
-    //std::cout << n_samples << std::endl;
-    // =======================================================================================================================================
 
     // =======================================================================================================================================
     // Calculate velocity and acceleration
@@ -566,7 +534,7 @@ int main(int argc, char **argv){
     }
 */
  //   ROS_INFO("Closing bag");
-    bag.close();
+
 
 
 
