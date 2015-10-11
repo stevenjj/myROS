@@ -22,7 +22,7 @@
 #define foreach BOOST_FOREACH
 
 #define MARKER_ID_TO_TRACK 4
-#define DEMO_FILE_NAME "demo_bags/lift_box_4.bag"
+#define DEMO_FILE_NAME "/home/stevenjj/catkin_ws/src/hw3/demo_bags/lift_box_4.bag"
 #define K_CONSTANT 500.0
 
 struct DMP_param{
@@ -512,7 +512,7 @@ void dmp_planning(double tau, double dt_des, const tf::Vector3 &start_pos, const
     // }
  }
 
-void learn_and_plan_dmp_trajectory(DMP_param reaching_dmp, DEMO_traj reaching_demo_traj, Waypoints_traj des_waypoints){
+void learn_and_plan_dmp_trajectory(DMP_param &reaching_dmp, DEMO_traj &reaching_demo_traj, Waypoints_traj &des_waypoints){
     // Learn and plan DMP trajectory -------------------------------------------------------------------------------------
     std::string demo_file = DEMO_FILE_NAME;
     int marker_id_to_learn = MARKER_ID_TO_TRACK;
@@ -538,7 +538,7 @@ void learn_and_plan_dmp_trajectory(DMP_param reaching_dmp, DEMO_traj reaching_de
     double tau_des = reaching_dmp.tau_demo; // Set duration of copying the trajectory    
 
     dmp_planning(tau_des, dt_des, r_gripper_start_pos, r_gripper_goal_pos, reaching_dmp, des_waypoints);
-    print_waypoints(des_waypoints); // Print DMP learned traj
+    //print_waypoints(des_waypoints); // Print DMP learned traj
 
     // Test DMP
     // std::vector<tf::Vector3> xyz_waypoints = test_dmp(K, D, reaching_dmp.tau_demo, alpha, reaching_demo_traj.start_pos, 
@@ -548,6 +548,22 @@ void learn_and_plan_dmp_trajectory(DMP_param reaching_dmp, DEMO_traj reaching_de
     //                                                                                   reaching_dmp.n_samples,
     //                                                                                   reaching_demo_traj.time); 
     // End of planning DMP trajectory -------------------------------------------------------------------------------------
+}
+
+void convert_waypoints_to_pr2_axes(Waypoints_traj &waypoints, Waypoints_traj &pr2_waypoints) {
+    // All we're doing is making x negative. But I want to transform the waypoints after the dmp is learned to keep
+    // pr2 and dmp implementation separated.
+    int n = 0;
+    for(std::vector<double>::iterator t_i = waypoints.time.begin(); t_i != waypoints.time.end(); ++t_i) {
+        n++;    // Count number of elements in waypoints    
+    }    
+        
+    for (std::vector<int>::size_type i = 0; i < n; ++i){
+        // invert X
+        tf::Vector3 pr2_points(-waypoints.pos[i].getX(), waypoints.pos[i].getY(), waypoints.pos[i].getZ());
+        pr2_waypoints.time.push_back(waypoints.time[i]);
+        pr2_waypoints.pos.push_back(pr2_points);        
+    }    
 }
 
 
@@ -564,79 +580,55 @@ int main(int argc, char **argv){
     Waypoints_traj des_waypoints;
     learn_and_plan_dmp_trajectory(reaching_dmp, reaching_demo_traj, des_waypoints);
 
-    
 
-    tf::Vector3 gripper_offset_vector(1,1,1); // Position of     
+    //MOVE Pr2 To a known Location
+    moveit::planning_interface::MoveGroup group("right_arm");
+    moveit::planning_interface::PlanningSceneInterface planning_scene_interface;  
+    // Getting Basic Information
+    // ^^^^^^^^^^^^^^^^^^^^^^^^^
+    // We can print the name of the reference frame for this robot.
+    ROS_INFO("Reference frame: %s", group.getPlanningFrame().c_str());  
+    // We can also print the name of the end-effector link for this group.
+    ROS_INFO("Reference frame: %s", group.getEndEffectorLink().c_str());
 
-/*
-   // Define Reference quaternion to be the x-axis.
-    tf::Quaternion main_axis(1,0,0, 1);
-    main_axis = main_axis.normalize();
+    // Move the robot to a known starting position
+    robot_state::RobotState start_state(*group.getCurrentState());
+    geometry_msgs::Pose start_pose2;
+    start_pose2.orientation.x = 1.0;
+    start_pose2.orientation.y = 0.0; 
+    start_pose2.orientation.z = 0.0;
+    start_pose2.orientation.w = 0.0;
+    start_pose2.position.x = 0.55;//0.55;
+    start_pose2.position.y = -0.55;//-0.05;
+    start_pose2.position.z = 0.8;//0.8;
 
-    // Define the position and orientation of the first marker
-    tf::Vector3 first_marker_vector_offset;
-    tf::Quaternion first_marker_axis;
+    const robot_state::JointModelGroup *joint_model_group =
+                  start_state.getJointModelGroup(group.getName());
+    start_state.setFromIK(joint_model_group, start_pose2);
+    group.setStartState(start_state);
 
-    // Define Quaternion Rotation Offset
-    tf::Quaternion axis_rotation;
+    // Now we will plan to the earlier pose target from the new 
+    // start state that we have just created.
+    group.setPoseTarget(start_pose2);
 
-    
-    int marker_index = 0;
+    moveit::planning_interface::MoveGroup::Plan my_plan;
+    bool success = group.plan(my_plan);
 
-    // Count total number of markers
-    // Identify the first marker and use its position and orientation to identify the first rotation
-    int total_markers = 0;
-    foreach(rosbag::MessageInstance const m, view){
-        if (total_markers == 0){
-            visualization_msgs::Marker::ConstPtr first_marker = m.instantiate<visualization_msgs::Marker>();
-
-            first_marker_vector_offset.setX(first_marker->pose.position.x);
-            first_marker_vector_offset.setY(first_marker->pose.position.y);
-            first_marker_vector_offset.setZ(first_marker->pose.position.z);              
-
-            tf::Quaternion store_axis (first_marker->pose.orientation.x, 
-                                                  first_marker->pose.orientation.y, 
-                                                  first_marker->pose.orientation.z,
-                                                  first_marker->pose.orientation.w);
-            first_marker_axis = store_axis;
-         }
-        total_markers++; // count total number of markers in the rosbag
-    }        
-
-    axis_rotation = first_marker_axis.inverse() * main_axis; // Find axis of rotation
-    tf::Transform transform_to_main_axis(tf::Quaternion(0,0,0,1), -first_marker_vector_offset); // Create transform
-    tf::Transform rotate_to_main_axis(axis_rotation, tf::Vector3(0,0,0)); // Create transform
-    //tf::Transform transform_to_main_axis(axis_rotation, -first_marker_vector_offset); // Create transform
-
-//            ROS_INFO("non-zero");
-//            std::cout << first_marker_vector_offset.getZ() << std::endl;
-//            sleep(1);
-
-    foreach(rosbag::MessageInstance const m, view){
-        //std::cout << m.getTopic() << std::endl;
-        ROS_INFO("Inside bag!");
-        //geometry_msgs::Pose::ConstPtr p = m.instantiate<geometry_msgs::Pose>();
-        visualization_msgs::Marker::ConstPtr p = m.instantiate<visualization_msgs::Marker>();
-
-        std::cout << m.getDataType() << std::endl; // Identify topic type
-        std::cout << p->id << std::endl;
-        std::cout << p->pose.position.x << std::endl;
-        std::cout << p->pose.position.y << std::endl;
-        std::cout << p->pose.position.z << std::endl;
-        std::cout << p->pose.orientation.x << std::endl;
-        std::cout << p->pose.orientation.y << std::endl;
-        std::cout << p->pose.orientation.z << std::endl;
-        std::cout << p->pose.orientation.w << std::endl;
-
-        pub_recorded_marker(rvizMarkerPub, p, marker_index, total_markers, transform_to_main_axis, rotate_to_main_axis);
-        marker_index++;
-        //sleep(1.0);
-        std::cout << total_markers << std::endl;
-    }
-*/
- //   ROS_INFO("Closing bag");
+    ROS_INFO("Moving to start position %s",success?"":"FAILED");
+    group.move();
+    /* Sleep to give Rviz time to visualize the plan. */
+    sleep(10.0);
+    // When done with the path constraint be sure to clear it.
+    group.clearPathConstraints();
 
 
+    Waypoints_traj converted_des_waypoints;
+    tf::Vector3 r_gripper_position(start_pose2.position.x, start_pose2.position.y, start_pose2.position.z);    
+    convert_waypoints_to_pr2_axes(des_waypoints, converted_des_waypoints); // all x-values need to be flipped due to working with the kinnect.
 
+    tf::Vector3 first_waypoint_vector_offset(converted_des_waypoints.pos[0].getX(), 
+                                             converted_des_waypoints.pos[0].getY(), 
+                                             converted_des_waypoints.pos[0].getZ());
+    tf::Transform transform_to_main_axis(tf::Quaternion(0,0,0,1), r_gripper_position - first_waypoint_vector_offset); // Create transform
 
 }

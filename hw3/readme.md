@@ -48,7 +48,7 @@ launch sequence:
 roslaunch pr2_gazebo pr2_empty_world.launch 
 rosrun rviz rviz
 
-roslaunch hw3 pr2_follow_trajectory.launch 
+roslaunch hw3 pr2_dmp_execute.launch 
 
 
 
