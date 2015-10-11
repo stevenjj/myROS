@@ -21,6 +21,8 @@
 
 #include <gazebo_msgs/SetModelState.h>
 #include <gazebo_msgs/GetModelState.h>
+#include <gazebo_msgs/GetLinkState.h>
+
 
 #define foreach BOOST_FOREACH
 
@@ -607,45 +609,45 @@ int main(int argc, char **argv){
 
 
 
-//     //MOVE Pr2 To a known Location
-     // moveit::planning_interface::MoveGroup group("right_arm");
-     // moveit::planning_interface::PlanningSceneInterface planning_scene_interface;  
-//     // Getting Basic Information
-//     // ^^^^^^^^^^^^^^^^^^^^^^^^^
-//     // We can print the name of the reference frame for this robot.
-//     ROS_INFO("Reference frame: %s", group.getPlanningFrame().c_str());  
-//     // We can also print the name of the end-effector link for this group.
-//     ROS_INFO("Reference frame: %s", group.getEndEffectorLink().c_str());
+    //MOVE Pr2 To a known Location
+     moveit::planning_interface::MoveGroup group("right_arm");
+     moveit::planning_interface::PlanningSceneInterface planning_scene_interface;  
+    // Getting Basic Information
+    // ^^^^^^^^^^^^^^^^^^^^^^^^^
+    // We can print the name of the reference frame for this robot.
+    ROS_INFO("Reference frame: %s", group.getPlanningFrame().c_str());  
+    // We can also print the name of the end-effector link for this group.
+    ROS_INFO("Reference frame: %s", group.getEndEffectorLink().c_str());
 
-//     // Move the robot to a known starting position
-//     robot_state::RobotState start_state(*group.getCurrentState());
-//     geometry_msgs::Pose start_pose2;
-//     start_pose2.orientation.x = 1.0;
-//     start_pose2.orientation.y = 0.0; 
-//     start_pose2.orientation.z = 0.0;
-//     start_pose2.orientation.w = 0.0;
-//     start_pose2.position.x = 0.50;//0.55;
-//     start_pose2.position.y = 0.0;//-0.05;
-//     start_pose2.position.z = 1.0;//0.8;
+    // Move the robot to a known starting position
+    robot_state::RobotState start_state(*group.getCurrentState());
+    geometry_msgs::Pose start_pose2;
+    start_pose2.orientation.x = 1.0;
+    start_pose2.orientation.y = 0.0; 
+    start_pose2.orientation.z = 0.0;
+    start_pose2.orientation.w = 0.0;
+    start_pose2.position.x = 0.50;//0.55;
+    start_pose2.position.y = 0.0;//-0.05;
+    start_pose2.position.z = 1.0;//0.8;
 
-//     const robot_state::JointModelGroup *joint_model_group =
-//                   start_state.getJointModelGroup(group.getName());
-//     start_state.setFromIK(joint_model_group, start_pose2);
-//     group.setStartState(start_state);
+    const robot_state::JointModelGroup *joint_model_group =
+                  start_state.getJointModelGroup(group.getName());
+    start_state.setFromIK(joint_model_group, start_pose2);
+    group.setStartState(start_state);
 
-//     // Now we will plan to the earlier pose target from the new 
-//     // start state that we have just created.
-//     group.setPoseTarget(start_pose2);
+    // Now we will plan to the earlier pose target from the new 
+    // start state that we have just created.
+    group.setPoseTarget(start_pose2);
 
-//     moveit::planning_interface::MoveGroup::Plan my_plan;
-//     bool success = group.plan(my_plan);
+    moveit::planning_interface::MoveGroup::Plan my_plan;
+    bool success = group.plan(my_plan);
 
-//     ROS_INFO("Moving to start position %s",success?"":"FAILED");
-//     group.move();
-//     /* Sleep to give Rviz time to visualize the plan. */
-//     sleep(10.0);
-//     // When done with the path constraint be sure to clear it.
-//     group.clearPathConstraints();
+    ROS_INFO("Moving to start position %s",success?"":"FAILED");
+    group.move();
+    /* Sleep to give Rviz time to visualize the plan. */
+    sleep(10.0);
+    // When done with the path constraint be sure to clear it.
+    group.clearPathConstraints();
 
 //     tf::Vector3 r_gripper_position(start_pose2.position.x, start_pose2.position.y, start_pose2.position.z);    
 // //    tf::Vector3 r_gripper_position(1,1,1);    
@@ -738,12 +740,24 @@ int main(int argc, char **argv){
 // ros::ServiceClient gms_c = n.serviceClient<gazebo_msgs::GetModelState>("/gazebo/get_model_state");
 // gazebo_msgs::GetModelState getmodelstate;
 
-// getmodelstate.request.model_name = "coke_can";
+//getmodelstate.request.model_name = "coke_can";
 // gms_c.call(getmodelstate);
 
 // std::cout << getmodelstate.response.pose.position.x << std::endl;
 // std::cout << getmodelstate.response.pose.position.y << std::endl;
 // std::cout << getmodelstate.response.pose.position.z << std::endl;
+
+
+ros::ServiceClient gls_c = n.serviceClient<gazebo_msgs::GetLinkState>("/gazebo/get_link_state");
+gazebo_msgs::GetLinkState getlinkstate;
+
+ getlinkstate.request.link_name = "pr2::r_gripper_l_finger_tip_link";
+ gls_c.call(getlinkstate);
+
+ std::cout << getlinkstate.response.link_state.pose.position.x << std::endl;
+ std::cout << getlinkstate.response.link_state.pose.position.y << std::endl;
+ std::cout << getlinkstate.response.link_state.pose.position.z << std::endl;
+
 
 
 // tf::Quaternion q;
@@ -761,6 +775,8 @@ int main(int argc, char **argv){
 // setmodelstate.request.model_state = modelstate;
 // //modelstate.twist = start_twist;
 // client.call(setmodelstate);
+
+//pr2::r_gripper_l_finger_tip_link
 
 // (0,0,0.051) is the height of the base_link from the ground 
 
