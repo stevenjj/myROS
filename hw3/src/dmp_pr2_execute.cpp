@@ -21,7 +21,9 @@
 
 #define foreach BOOST_FOREACH
 
-double getPhase(double alpha, double tau, double t);
+#define MARKER_ID_TO_TRACK 4
+#define DEMO_FILE_NAME "demo_bags/lift_box_4.bag"
+#define K_CONSTANT 500.0
 
 struct DMP_param{
     double K;
@@ -62,8 +64,9 @@ struct Waypoints_traj{
     std::vector<tf::Vector3> pos;
 };
 
+double getPhase(double alpha, double tau, double t);
 
-void pub_recorded_marker(ros::Publisher &marker_pub, visualization_msgs::Marker::ConstPtr &rosbag_marker, 
+void pub_dmp_markers(ros::Publisher &marker_pub, visualization_msgs::Marker::ConstPtr &rosbag_marker, 
                          int index, int total_markers, tf::Transform &translate_to_main, tf::Transform &rotate_to_main ){
 
     tf::Vector3 marker_position (rosbag_marker->pose.position.x,
@@ -101,9 +104,9 @@ void pub_recorded_marker(ros::Publisher &marker_pub, visualization_msgs::Marker:
     marker.action = visualization_msgs::Marker::ADD;
 
     // Try some coordinate transformations:
-    marker.pose.position.z = marker_position.getX();//rosbag_marker->pose.position.x;//0;
+    marker.pose.position.x = -marker_position.getX();//rosbag_marker->pose.position.x;//0;
     marker.pose.position.y = marker_position.getY();//rosbag_marker->pose.position.y;//0;
-    marker.pose.position.x = -marker_position.getZ();//rosbag_marker->pose.position.z;//0;
+    marker.pose.position.z = marker_position.getZ();//rosbag_marker->pose.position.z;//0;
     marker.pose.orientation.x = 1;//rosbag_marker->pose.orientation.x;//0.0;
     marker.pose.orientation.y = 0;//rosbag_marker->pose.orientation.y;//0.0;
     marker.pose.orientation.z = 0;//rosbag_marker->pose.orientation.z;//0.0;
@@ -338,10 +341,10 @@ void print_demo_traj(DEMO_traj &demo_data){
   }    
 }
 
-void obtain_pos_data_from_bag(DEMO_traj &demo_data){
+void obtain_pos_data_from_bag(std::string file_name, int marker_id_to_learn, DEMO_traj &demo_data){
 //    ROS_INFO("Opening Bag");
     rosbag::Bag bag;    
-    bag.open("demo_bags/lift_box_4.bag", rosbag::bagmode::Read);
+    bag.open(file_name, rosbag::bagmode::Read);
     std::vector<std::string> topics;
     topics.push_back(std::string("visualization_marker")); //Specify topic to read
     rosbag::View view(bag, rosbag::TopicQuery(topics));
@@ -352,7 +355,7 @@ void obtain_pos_data_from_bag(DEMO_traj &demo_data){
     double start_nsec = 0;
     int n_samples = 0;
 
-    int marker_id = 4;
+    int marker_id = marker_id_to_learn;
     // Go to the trajectory bag for the first time.
     foreach(rosbag::MessageInstance const m, view){       
         visualization_msgs::Marker::ConstPtr p = m.instantiate<visualization_msgs::Marker>();
@@ -436,7 +439,6 @@ void dmp_learning(const double K, const double D, double alpha, const DEMO_traj 
 
 void dmp_planning(double tau, double dt_des, const tf::Vector3 &start_pos, const tf::Vector3 &goal_pos, 
                                                  const DMP_param &dmp_to_use, Waypoints_traj &waypoints){
-
         double K = dmp_to_use.K;
         double D = dmp_to_use.D;        
         double alpha = dmp_to_use.alpha;
@@ -479,8 +481,6 @@ void dmp_planning(double tau, double dt_des, const tf::Vector3 &start_pos, const
 
          t += dt;     
     }
-
-
  }
 
  void print_waypoints(Waypoints_traj &waypoints) {
@@ -512,47 +512,61 @@ void dmp_planning(double tau, double dt_des, const tf::Vector3 &start_pos, const
     // }
  }
 
-
-int main(int argc, char **argv){
-    ros::init (argc, argv, "dmp_pr2_execute");
-    ros::NodeHandle n;
-    ros::Publisher rvizMarkerPub; 
-    rvizMarkerPub = n.advertise < visualization_msgs::Marker > ("visualization_marker", 1000);
-
-
-    DMP_param reaching_dmp;
-    DEMO_traj reaching_demo_traj;
-    Waypoints_traj des_waypoints;
-
-    //std::string string_text = "test!";
-    obtain_pos_data_from_bag(reaching_demo_traj); // Grab bag data
-    //    print_demo_traj(reaching_demo_traj); //print out recorded trajectories
+void learn_and_plan_dmp_trajectory(DMP_param reaching_dmp, DEMO_traj reaching_demo_traj, Waypoints_traj des_waypoints){
+    // Learn and plan DMP trajectory -------------------------------------------------------------------------------------
+    std::string demo_file = DEMO_FILE_NAME;
+    int marker_id_to_learn = MARKER_ID_TO_TRACK;
+    obtain_pos_data_from_bag(demo_file, marker_id_to_learn, reaching_demo_traj);  // Grab data
     calculate_vel_acel_data(reaching_demo_traj); // Calculate velocities and accelerations
+    //    print_demo_traj(reaching_demo_traj); //print out recorded trajectories
 
-    // =======================================================================================================================================
-    // Calculate DMP Part 1: get f_target(s)
-    double K = 500.0;
+    double K = K_CONSTANT;
     double D = 2*sqrt(K);
-    double alpha = -log(0.01); // selected so that s(t) = exp(-alpha/tau_demo)*t converges to 99% when t = tau_demo    
-    
+    double alpha = -log(0.01); // selected so that s(t) = exp(-alpha/tau_demo)*t converges to 99% when t = tau_demo        
     dmp_learning(K, D, alpha, reaching_demo_traj, reaching_dmp); // Learn the dmp of reaching demo
 
+    // Prep the dmp planning phase
     tf::Vector3 r_gripper_start_pos(0,0,0); //Modify this to pr2's starting arm position
-    tf::Vector3 r_gripper_goal_pos(-0.164,-0.055,-0.232);
+    int traj_samples = reaching_demo_traj.n_samples;
+    double goal_x = reaching_demo_traj.pos[traj_samples-1].getX() - reaching_demo_traj.pos[0].getX()  ;
+    double goal_y = reaching_demo_traj.pos[traj_samples-1].getY() - reaching_demo_traj.pos[0].getY()  ;
+    double goal_z = reaching_demo_traj.pos[traj_samples-1].getZ() - reaching_demo_traj.pos[0].getZ()  ;
 
+    // tf::Vector3 r_gripper_goal_pos(-0.164,-0.055,-0.232);
+    tf::Vector3 r_gripper_goal_pos(goal_x, goal_y, goal_z);    
     double dt_des = 0.001;
     double tau_des = reaching_dmp.tau_demo; // Set duration of copying the trajectory    
 
     dmp_planning(tau_des, dt_des, r_gripper_start_pos, r_gripper_goal_pos, reaching_dmp, des_waypoints);
-    print_waypoints(des_waypoints);
+    print_waypoints(des_waypoints); // Print DMP learned traj
 
+    // Test DMP
     // std::vector<tf::Vector3> xyz_waypoints = test_dmp(K, D, reaching_dmp.tau_demo, alpha, reaching_demo_traj.start_pos, 
     //                                                                                   reaching_demo_traj.goal_pos, 
     //                                                                                   reaching_dmp.s, 
     //                                                                                   reaching_dmp.f_s,
     //                                                                                   reaching_dmp.n_samples,
     //                                                                                   reaching_demo_traj.time); 
+    // End of planning DMP trajectory -------------------------------------------------------------------------------------
+}
 
+
+int main(int argc, char **argv){
+    ros::init (argc, argv, "dmp_pr2_execute");
+    ros::NodeHandle n;
+    ros::AsyncSpinner spinner(1);
+    spinner.start();
+    ros::Publisher rvizMarkerPub; // Create Marker Publisher
+    rvizMarkerPub = n.advertise < visualization_msgs::Marker > ("visualization_marker", 1000); // Advertise Marker Publisher
+
+    DMP_param reaching_dmp;
+    DEMO_traj reaching_demo_traj;
+    Waypoints_traj des_waypoints;
+    learn_and_plan_dmp_trajectory(reaching_dmp, reaching_demo_traj, des_waypoints);
+
+    
+
+    tf::Vector3 gripper_offset_vector(1,1,1); // Position of     
 
 /*
    // Define Reference quaternion to be the x-axis.

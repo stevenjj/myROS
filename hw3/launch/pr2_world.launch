@@ -34,7 +34,9 @@
  -->
 
 <node name="spawn_table" pkg="gazebo_ros" type="spawn_model"
-     args="-file '~/.gazebo/models/table/model.sdf' -sdf -z 1 -model table_1 -x 0.0 -z 0" respawn="false" output="screen" />
+     args="-file ~/.gazebo/models/table/model.sdf -sdf -model table_1 -x 2.0 -z 0" respawn="false" output="screen" />
+
+  
   
 <!-- 
 
