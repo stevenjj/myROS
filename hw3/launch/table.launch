@@ -3,7 +3,10 @@
      args="-file /home/stevenjj/.gazebo/models/table/model.sdf -sdf -model table_1 -x 2.0 -z 0" respawn="false" output="screen" />
   --> 
  <node name="spawn_table" pkg="gazebo_ros" type="spawn_model"
-     args="-file $(find hw3)/models/table.sdf -sdf -model table_2 -x -2.0 -z 0" respawn="false" output="screen" />
+     args="-file $(find hw3)/models/table.sdf -sdf -model table_1 -x 1.028586 -y -0.778717" respawn="false" output="screen" />
+
+ <node name="spawn_can" pkg="gazebo_ros" type="spawn_model"
+     args="-file $(find hw3)/models/coke_can.sdf -sdf -model coke_can -x 0.668126 -y -0.445299 -z 1.154004" respawn="false" output="screen" />
  
 
  </launch>

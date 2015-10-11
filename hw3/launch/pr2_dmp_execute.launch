@@ -19,7 +19,12 @@
   </node>
 -->
 
-  <node name="dmp_pr2_execute" pkg="hw3" type="dmp_pr2_execute" respawn="false" output="screen">
+<!--
+<node name="spawn_table" pkg="gazebo_ros" type="spawn_model"
+     args="-file $(find hw3)/models/table.sdf -sdf -model table_2 -x -2.0 -z 0" respawn="false" output="screen" />
+-->
+
+<node name="dmp_pr2_execute" pkg="hw3" type="dmp_pr2_execute" respawn="false" output="screen">
   </node>
 
 

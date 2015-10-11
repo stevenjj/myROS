@@ -19,6 +19,9 @@
 #include <moveit_msgs/AttachedCollisionObject.h>
 #include <moveit_msgs/CollisionObject.h>
 
+#include <gazebo_msgs/SetModelState.h>
+#include <gazebo_msgs/GetModelState.h>
+
 #define foreach BOOST_FOREACH
 
 #define MARKER_ID_TO_TRACK 4
@@ -66,7 +69,34 @@ struct Waypoints_traj{
 
 double getPhase(double alpha, double tau, double t);
 
-void pub_dmp_markers(ros::Publisher &marker_pub, int index, int total_markers, Waypoints_traj des_waypoints,
+void create_pr2_waypoints(int index, const Waypoints_traj &des_waypoints, std::vector<geometry_msgs::Pose> &cartesian_waypoints, 
+                          const tf::Transform &translate_to_main, const tf::Transform &rotate_to_main){
+
+   tf::Vector3 xyz_position (des_waypoints.pos[index].getX(),
+                                 des_waypoints.pos[index].getY(),
+                                 des_waypoints.pos[index].getZ());
+    tf::Quaternion xyz_orientation (1, 0, 0, 0);
+
+    //marker_position = marker_position - offset_vector; //transform_to_main * 
+    xyz_position = translate_to_main * xyz_position; 
+    xyz_orientation = rotate_to_main * xyz_orientation;
+
+// Push marker 6DoF Pose to the waypoints vector.
+    geometry_msgs::Pose target_pose;
+    target_pose.position.x = xyz_position.getX();
+    target_pose.position.y = xyz_position.getY();
+    target_pose.position.z = xyz_position.getZ();
+
+    target_pose.orientation.x = xyz_orientation.getAxis().getX();//rosbag_marker->pose.orientation.x;//0.0;
+    target_pose.orientation.y = xyz_orientation.getAxis().getY();//rosbag_marker->pose.orientation.y;//0.0;
+    target_pose.orientation.z = xyz_orientation.getAxis().getZ();//rosbag_marker->pose.orientation.z;//0.0;
+    target_pose.orientation.w = xyz_orientation.getW();//rosbag_marker->pose.orientation.w; //1.0;
+
+    cartesian_waypoints.push_back(target_pose);
+
+}
+
+void pub_dmp_markers(ros::Publisher &marker_pub, int index, int total_markers, Waypoints_traj &des_waypoints,
                     tf::Transform &translate_to_main, tf::Transform &rotate_to_main){
 
     tf::Vector3 marker_position (des_waypoints.pos[index].getX(),
@@ -529,7 +559,7 @@ void learn_and_plan_dmp_trajectory(DMP_param &reaching_dmp, DEMO_traj &reaching_
 
     // tf::Vector3 r_gripper_goal_pos(-0.164,-0.055,-0.232);
     tf::Vector3 r_gripper_goal_pos(goal_x, goal_y, goal_z);    
-    double dt_des = 0.001;
+    double dt_des = 0.5;
     double tau_des = reaching_dmp.tau_demo; // Set duration of copying the trajectory    
 
     dmp_planning(tau_des, dt_des, r_gripper_start_pos, r_gripper_goal_pos, reaching_dmp, des_waypoints);
@@ -576,69 +606,162 @@ int main(int argc, char **argv){
     learn_and_plan_dmp_trajectory(reaching_dmp, reaching_demo_traj, des_waypoints);
 
 
-    //MOVE Pr2 To a known Location
-    // moveit::planning_interface::MoveGroup group("right_arm");
-    // moveit::planning_interface::PlanningSceneInterface planning_scene_interface;  
-    // // Getting Basic Information
-    // // ^^^^^^^^^^^^^^^^^^^^^^^^^
-    // // We can print the name of the reference frame for this robot.
-    // ROS_INFO("Reference frame: %s", group.getPlanningFrame().c_str());  
-    // // We can also print the name of the end-effector link for this group.
-    // ROS_INFO("Reference frame: %s", group.getEndEffectorLink().c_str());
 
-    // // Move the robot to a known starting position
-    // robot_state::RobotState start_state(*group.getCurrentState());
-    // geometry_msgs::Pose start_pose2;
-    // start_pose2.orientation.x = 1.0;
-    // start_pose2.orientation.y = 0.0; 
-    // start_pose2.orientation.z = 0.0;
-    // start_pose2.orientation.w = 0.0;
-    // start_pose2.position.x = 0.55;//0.55;
-    // start_pose2.position.y = -0.55;//-0.05;
-    // start_pose2.position.z = 0.8;//0.8;
+//     //MOVE Pr2 To a known Location
+     // moveit::planning_interface::MoveGroup group("right_arm");
+     // moveit::planning_interface::PlanningSceneInterface planning_scene_interface;  
+//     // Getting Basic Information
+//     // ^^^^^^^^^^^^^^^^^^^^^^^^^
+//     // We can print the name of the reference frame for this robot.
+//     ROS_INFO("Reference frame: %s", group.getPlanningFrame().c_str());  
+//     // We can also print the name of the end-effector link for this group.
+//     ROS_INFO("Reference frame: %s", group.getEndEffectorLink().c_str());
 
-    // const robot_state::JointModelGroup *joint_model_group =
-    //               start_state.getJointModelGroup(group.getName());
-    // start_state.setFromIK(joint_model_group, start_pose2);
-    // group.setStartState(start_state);
+//     // Move the robot to a known starting position
+//     robot_state::RobotState start_state(*group.getCurrentState());
+//     geometry_msgs::Pose start_pose2;
+//     start_pose2.orientation.x = 1.0;
+//     start_pose2.orientation.y = 0.0; 
+//     start_pose2.orientation.z = 0.0;
+//     start_pose2.orientation.w = 0.0;
+//     start_pose2.position.x = 0.50;//0.55;
+//     start_pose2.position.y = 0.0;//-0.05;
+//     start_pose2.position.z = 1.0;//0.8;
 
-    // // Now we will plan to the earlier pose target from the new 
-    // // start state that we have just created.
-    // group.setPoseTarget(start_pose2);
+//     const robot_state::JointModelGroup *joint_model_group =
+//                   start_state.getJointModelGroup(group.getName());
+//     start_state.setFromIK(joint_model_group, start_pose2);
+//     group.setStartState(start_state);
 
-    // moveit::planning_interface::MoveGroup::Plan my_plan;
-    // bool success = group.plan(my_plan);
+//     // Now we will plan to the earlier pose target from the new 
+//     // start state that we have just created.
+//     group.setPoseTarget(start_pose2);
 
-    // ROS_INFO("Moving to start position %s",success?"":"FAILED");
-    // group.move();
-    // /* Sleep to give Rviz time to visualize the plan. */
-    // sleep(10.0);
-    // // When done with the path constraint be sure to clear it.
-    // group.clearPathConstraints();
+//     moveit::planning_interface::MoveGroup::Plan my_plan;
+//     bool success = group.plan(my_plan);
 
-//    tf::Vector3 r_gripper_position(start_pose2.position.x, start_pose2.position.y, start_pose2.position.z);    
+//     ROS_INFO("Moving to start position %s",success?"":"FAILED");
+//     group.move();
+//     /* Sleep to give Rviz time to visualize the plan. */
+//     sleep(10.0);
+//     // When done with the path constraint be sure to clear it.
+//     group.clearPathConstraints();
 
-    tf::Vector3 r_gripper_position(1,1,1);    
+//     tf::Vector3 r_gripper_position(start_pose2.position.x, start_pose2.position.y, start_pose2.position.z);    
+// //    tf::Vector3 r_gripper_position(1,1,1);    
 
-    Waypoints_traj converted_des_waypoints;
+//     Waypoints_traj converted_des_waypoints;
 
-    convert_waypoints_to_pr2_axes(des_waypoints, converted_des_waypoints); // all x-values need to be flipped due to working with the kinnect.
+//     convert_waypoints_to_pr2_axes(des_waypoints, converted_des_waypoints); // all x-values need to be flipped due to working with the kinnect.
 
-    tf::Vector3 first_waypoint_vector_offset(converted_des_waypoints.pos[0].getX(), 
-                                             converted_des_waypoints.pos[0].getY(), 
-                                             converted_des_waypoints.pos[0].getZ());
-    tf::Transform translate_to_main_axis(tf::Quaternion(0,0,0,1), r_gripper_position - first_waypoint_vector_offset); // Create translation transform
-    tf::Transform rotate_to_main_axis(tf::Quaternion(0,0,0,1), tf::Vector3(0,0,0)); // Create rotate transform. Don't rotate.    
+//     tf::Vector3 first_waypoint_vector_offset(converted_des_waypoints.pos[0].getX(), 
+//                                              converted_des_waypoints.pos[0].getY(), 
+//                                              converted_des_waypoints.pos[0].getZ());
+//     tf::Transform translate_to_main_axis(tf::Quaternion(0,0,0,1), r_gripper_position - first_waypoint_vector_offset); // Create translation transform
+//     tf::Transform rotate_to_main_axis(tf::Quaternion(0,0,0,1), tf::Vector3(0,0,0)); // Create rotate transform. Don't rotate.    
 
-    // Count number of elements in waypoints 
-    int n_waypoints = 0;
-    for(std::vector<double>::iterator t_i = converted_des_waypoints.time.begin(); t_i != converted_des_waypoints.time.end(); ++t_i) {
-        n_waypoints++;       
-    }    
-    // Plot waypoints in rviz and push them to waypoints:
-    for (std::vector<int>::size_type i = 0; i < n_waypoints; ++i){
-        pub_dmp_markers(rvizMarkerPub, i, n_waypoints, converted_des_waypoints, translate_to_main_axis, rotate_to_main_axis);
+//     // Count number of elements in waypoints 
+//     int n_waypoints = 0;
+//     for(std::vector<double>::iterator t_i = converted_des_waypoints.time.begin(); t_i != converted_des_waypoints.time.end(); ++t_i) {
+//         n_waypoints++;       
+//     }    
+    
+//     std::vector<geometry_msgs::Pose> right_arm_waypoints;
+//     // Plot waypoints in rviz and push them to waypoints:
+//     for (std::vector<int>::size_type i = 0; i < n_waypoints; ++i){
+//         pub_dmp_markers(rvizMarkerPub, i, n_waypoints, converted_des_waypoints, translate_to_main_axis, rotate_to_main_axis);
+//         create_pr2_waypoints(i, converted_des_waypoints, right_arm_waypoints, translate_to_main_axis, rotate_to_main_axis);
+//     }
 
-    }
+
+
+//   // Cartesian Paths
+//   // ^^^^^^^^^^^^^^^
+//   // You can plan a cartesian path directly by specifying a list of waypoints 
+//   // for the end-effector to go through. Note that we are starting 
+//   // from the new start state above.  The initial pose (start state) does not
+//   // need to be added to the waypoint list.
+
+//   // We want the cartesian path to be interpolated at a resolution of 1 cm
+//   // which is why we will specify 0.01 as the max step in cartesian
+//   // translation.  We will specify the jump threshold as 0.0, effectively
+//   // disabling it.
+//   moveit_msgs::RobotTrajectory trajectory;
+//   double fraction = group.computeCartesianPath(right_arm_waypoints,
+//                                                0.01,  // eef_step
+//                                                0.0,   // jump_threshold
+//                                                trajectory);
+
+//   ROS_INFO("Visualizing plan (cartesian path) (%.2f%% acheived)",
+//         fraction * 100.0);    
+//   /* Sleep to give Rviz time to visualize the plan. */
+
+//   ROS_INFO("Executing plan (cartesian path)");
+
+//   moveit::planning_interface::MoveGroup::Plan plan;
+//   plan.trajectory_ = trajectory;
+//   group.execute(plan);
+  
+//   sleep(15.0);
+//   ros::shutdown();  
+
+
+//ros::NodeHandle n;
+// geometry_msgs::Pose start_pose;
+// start_pose.position.x = 1.0;
+// start_pose.position.y = 1.0;
+// start_pose.position.z = 0.0;
+// start_pose.orientation.x = 0.0;
+// start_pose.orientation.y = 0.0;
+// start_pose.orientation.z = 0.0;
+// start_pose.orientation.w = 0.0;
+
+// geometry_msgs::Twist start_twist;
+// start_twist.linear.x = 0.0;
+// start_twist.linear.y = 0.0;
+// start_twist.linear.z = 0.0;
+// start_twist.angular.x = 0.0;
+// start_twist.angular.y = 0.0;
+// start_twist.angular.z = 0.0;
+
+// gazebo_msgs::ModelState modelstate;
+// modelstate.model_name = (std::string) "table_1";
+// modelstate.reference_frame = (std::string) "world";
+// modelstate.pose = start_pose;
+// modelstate.twist = start_twist;
+
+// ros::ServiceClient client = n.serviceClient<gazebo_msgs::SetModelState>("/gazebo/set_model_state");
+// gazebo_msgs::SetModelState setmodelstate;
+// setmodelstate.request.model_state = modelstate;
+// client.call(setmodelstate);
+
+// ros::ServiceClient gms_c = n.serviceClient<gazebo_msgs::GetModelState>("/gazebo/get_model_state");
+// gazebo_msgs::GetModelState getmodelstate;
+
+// getmodelstate.request.model_name = "coke_can";
+// gms_c.call(getmodelstate);
+
+// std::cout << getmodelstate.response.pose.position.x << std::endl;
+// std::cout << getmodelstate.response.pose.position.y << std::endl;
+// std::cout << getmodelstate.response.pose.position.z << std::endl;
+
+
+// tf::Quaternion q;
+// q.setRPY(1.57,0,0);
+// modelstate.model_name = (std::string) "coke_can";
+// modelstate.reference_frame = (std::string) "world";
+// start_pose.position.x = getmodelstate.response.pose.position.x;
+// start_pose.position.y = getmodelstate.response.pose.position.y;
+// start_pose.position.z = getmodelstate.response.pose.position.z;
+// start_pose.orientation.x = q.getAxis().getX();
+// start_pose.orientation.y = q.getAxis().getY();
+// start_pose.orientation.z = q.getAxis().getZ();
+// start_pose.orientation.w = q.getW();
+// modelstate.pose = start_pose;
+// setmodelstate.request.model_state = modelstate;
+// //modelstate.twist = start_twist;
+// client.call(setmodelstate);
+
+// (0,0,0.051) is the height of the base_link from the ground 
 
 }
