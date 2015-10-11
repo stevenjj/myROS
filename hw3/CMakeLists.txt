@@ -49,6 +49,10 @@ add_executable(dmp_f_target_calc src/dmp_f_target_calc.cpp)
 target_link_libraries(dmp_f_target_calc ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 install(TARGETS dmp_f_target_calc DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
+add_executable(dmp_pr2_execute src/dmp_pr2_execute.cpp)
+target_link_libraries(dmp_pr2_execute ${catkin_LIBRARIES} ${Boost_LIBRARIES})
+install(TARGETS dmp_pr2_execute DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+
 #add_subdirectory(kinematics)
 #add_subdirectory(planning)
 #add_subdirectory(state_display)
