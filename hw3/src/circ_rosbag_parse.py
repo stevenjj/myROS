@@ -12,21 +12,22 @@ i_start = 17 # Right arm Joint # 1 Index
 i_end = 23 # Right arm Joint # 7 Index
 
 
-for topic, msg, t in rosbag.Bag('circular_forward_trajectory.bag').read_messages():
-#for topic, msg, t in rosbag.Bag('reach.bag').read_messages():
+#for topic, msg, t in rosbag.Bag('circular_forward_trajectory.bag').read_messages():
+for topic, msg, t in rosbag.Bag('demo_bags/lift_box_4.bag').read_messages():
     start_time = (float(str(t)) / (nanosecs)) 
+#    print msg
     break
 
-
+print "id time x -x y z"
 with rosbag.Bag('output.bag', 'w') as outbag:	
-    for topic, msg, t in rosbag.Bag('circular_forward_trajectory.bag').read_messages():
-#    for topic, msg, t in rosbag.Bag('reach.bag').read_messages():		
+#    for topic, msg, t in rosbag.Bag('circular_forward_trajectory.bag').read_messages():
+    for topic, msg, t in rosbag.Bag('demo_bags/lift_box_4.bag').read_messages():		
 		# Convert current time in seconds
         cur_time = (float(str(t)) / (nanosecs)) 
 
-
-        print "%.3f" % (cur_time-start_time) , msg.pose.position.x, msg.pose.position.y, msg.pose.position.z
-        print msg
+        if (msg.id == 4):
+            print msg.id, "%.3f" % (cur_time-start_time), msg.pose.position.x, -msg.pose.position.x, msg.pose.position.y, msg.pose.position.z
+#      print msg
 
         # Ensure that we start at the desired time index
         # and ensure that we space by 0.1 secs

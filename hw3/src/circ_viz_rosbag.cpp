@@ -121,7 +121,7 @@ void pub_recorded_marker(ros::Publisher &marker_pub, visualization_msgs::Marker:
     // Set the marker action.  Options are ADD, DELETE, and new in ROS Indigo: 3 (DELETEALL)
     marker.action = visualization_msgs::Marker::ADD;
 
-    // Set the pose of the marker.  This is a full 6DOF pose relative to the frame/time specified in the header
+    //Set the pose of the marker.  This is a full 6DOF pose relative to the frame/time specified in the header
     // marker.pose.position.x = marker_position.getX();//rosbag_marker->pose.position.x;//0;
     // marker.pose.position.y = marker_position.getY();//rosbag_marker->pose.position.y;//0;
     // marker.pose.position.z = marker_position.getZ();//rosbag_marker->pose.position.z;//0;
@@ -132,9 +132,14 @@ void pub_recorded_marker(ros::Publisher &marker_pub, visualization_msgs::Marker:
 
 
     // Try some coordinate transformations:
-    marker.pose.position.z = marker_position.getX();//rosbag_marker->pose.position.x;//0;
+    // marker.pose.position.z = marker_position.getX();//rosbag_marker->pose.position.x;//0;
+    // marker.pose.position.y = marker_position.getY();//rosbag_marker->pose.position.y;//0;
+    // marker.pose.position.x = -marker_position.getZ();//rosbag_marker->pose.position.z;//0;
+
+
+    marker.pose.position.x = -marker_position.getX();//rosbag_marker->pose.position.x;//0;
     marker.pose.position.y = marker_position.getY();//rosbag_marker->pose.position.y;//0;
-    marker.pose.position.x = -marker_position.getZ();//rosbag_marker->pose.position.z;//0;
+    marker.pose.position.z = marker_position.getZ();//rosbag_marker->pose.position.z;//0;
     marker.pose.orientation.x = 1;//rosbag_marker->pose.orientation.x;//0.0;
     marker.pose.orientation.y = 0;//rosbag_marker->pose.orientation.y;//0.0;
     marker.pose.orientation.z = 0;//rosbag_marker->pose.orientation.z;//0.0;
@@ -167,7 +172,7 @@ void pub_recorded_marker(ros::Publisher &marker_pub, visualization_msgs::Marker:
       sleep(1.0);
     }
     marker_pub.publish(marker);
-
+    sleep(1.0);
 }
 
 
@@ -179,7 +184,7 @@ int main(int argc, char **argv){
 
     ROS_INFO("Opening Bag");
     rosbag::Bag bag;    
-    bag.open("circular_forward_trajectory.bag", rosbag::bagmode::Read);
+    bag.open("demo_bags/lift_box_4.bag", rosbag::bagmode::Read);
     std::vector<std::string> topics;
     topics.push_back(std::string("visualization_marker")); //Specify topic to read
     rosbag::View view(bag, rosbag::TopicQuery(topics));
@@ -198,24 +203,29 @@ int main(int argc, char **argv){
     
     int marker_index = 0;
 
+    int marker_id_to_viz = 4; // 4 for the hand traj. 6 for the obj traj.
+
     // Count total number of markers
     // Identify the first marker and use its position and orientation to identify the first rotation
     int total_markers = 0;
     foreach(rosbag::MessageInstance const m, view){
-        if (total_markers == 0){
-            visualization_msgs::Marker::ConstPtr first_marker = m.instantiate<visualization_msgs::Marker>();
+        visualization_msgs::Marker::ConstPtr first_marker = m.instantiate<visualization_msgs::Marker>();
+        if (first_marker-> id == marker_id_to_viz){
+            if (total_markers == 0){
+    //            visualization_msgs::Marker::ConstPtr first_marker = m.instantiate<visualization_msgs::Marker>();
 
-            first_marker_vector_offset.setX(first_marker->pose.position.x);
-            first_marker_vector_offset.setY(first_marker->pose.position.y);
-            first_marker_vector_offset.setZ(first_marker->pose.position.z);              
+                first_marker_vector_offset.setX(first_marker->pose.position.x);
+                first_marker_vector_offset.setY(first_marker->pose.position.y);
+                first_marker_vector_offset.setZ(first_marker->pose.position.z);              
 
-            tf::Quaternion store_axis (first_marker->pose.orientation.x, 
-                                                  first_marker->pose.orientation.y, 
-                                                  first_marker->pose.orientation.z,
-                                                  first_marker->pose.orientation.w);
-            first_marker_axis = store_axis;
-         }
-        total_markers++; // count total number of markers in the rosbag
+                tf::Quaternion store_axis (first_marker->pose.orientation.x, 
+                                                      first_marker->pose.orientation.y, 
+                                                      first_marker->pose.orientation.z,
+                                                      first_marker->pose.orientation.w);
+                first_marker_axis = store_axis;
+             }
+            total_markers++; // count total number of markers in the rosbag
+        }            
     }        
 
               axis_rotation = first_marker_axis.inverse() * main_axis; // Find axis of rotation
@@ -232,18 +242,20 @@ int main(int argc, char **argv){
         ROS_INFO("Inside bag!");
         //geometry_msgs::Pose::ConstPtr p = m.instantiate<geometry_msgs::Pose>();
         visualization_msgs::Marker::ConstPtr p = m.instantiate<visualization_msgs::Marker>();
-        std::cout << m.getDataType() << std::endl; // Identify topic type
-        std::cout << p->id << std::endl;
-        std::cout << p->pose.position.x << std::endl;
-        std::cout << p->pose.position.y << std::endl;
-        std::cout << p->pose.position.z << std::endl;
-        std::cout << p->pose.orientation.x << std::endl;
-        std::cout << p->pose.orientation.y << std::endl;
-        std::cout << p->pose.orientation.z << std::endl;
-        std::cout << p->pose.orientation.w << std::endl;
+        if (p-> id == marker_id_to_viz){
+            std::cout << m.getDataType() << std::endl; // Identify topic type
+            std::cout << p->id << std::endl;
+            std::cout << p->pose.position.x << std::endl;
+            std::cout << p->pose.position.y << std::endl;
+            std::cout << p->pose.position.z << std::endl;
+            std::cout << p->pose.orientation.x << std::endl;
+            std::cout << p->pose.orientation.y << std::endl;
+            std::cout << p->pose.orientation.z << std::endl;
+            std::cout << p->pose.orientation.w << std::endl;
 
-        pub_recorded_marker(rvizMarkerPub, p, marker_index, total_markers, transform_to_main_axis, rotate_to_main_axis);
-        marker_index++;
+            pub_recorded_marker(rvizMarkerPub, p, marker_index, total_markers, transform_to_main_axis, rotate_to_main_axis);
+            marker_index++;
+        }
         //sleep(1.0);
         std::cout << total_markers << std::endl;
     }
