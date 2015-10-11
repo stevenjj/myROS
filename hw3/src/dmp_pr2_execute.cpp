@@ -66,17 +66,13 @@ struct Waypoints_traj{
 
 double getPhase(double alpha, double tau, double t);
 
-void pub_dmp_markers(ros::Publisher &marker_pub, visualization_msgs::Marker::ConstPtr &rosbag_marker, 
-                         int index, int total_markers, tf::Transform &translate_to_main, tf::Transform &rotate_to_main ){
+void pub_dmp_markers(ros::Publisher &marker_pub, int index, int total_markers, Waypoints_traj des_waypoints,
+                    tf::Transform &translate_to_main, tf::Transform &rotate_to_main){
 
-    tf::Vector3 marker_position (rosbag_marker->pose.position.x,
-                                 rosbag_marker->pose.position.y,
-                                 rosbag_marker->pose.position.z);
-    tf::Quaternion marker_orientation (rosbag_marker->pose.orientation.x,
-                                       rosbag_marker->pose.orientation.y,
-                                       rosbag_marker->pose.orientation.z,
-                                       rosbag_marker->pose.orientation.w);
-
+    tf::Vector3 marker_position (des_waypoints.pos[index].getX(),
+                                 des_waypoints.pos[index].getY(),
+                                 des_waypoints.pos[index].getZ());
+    tf::Quaternion marker_orientation (1, 0, 0, 0);
 
     //marker_position = marker_position - offset_vector; //transform_to_main * 
     marker_position = translate_to_main * marker_position; 
@@ -87,14 +83,14 @@ void pub_dmp_markers(ros::Publisher &marker_pub, visualization_msgs::Marker::Con
 //    uint32_t shape = visualization_msgs::Marker::SPHERE;
     uint32_t shape = visualization_msgs::Marker::ARROW;
 
-    // Set the frame ID and timestamp.  See the TF tutorials for information on these.my_frame
+    // Set the frame ID and timestamp.  See the TF tutorials for information on these.
     //marker.header.frame_id = "/my_frame";
     marker.header.frame_id = "/base_link";
     marker.header.stamp = ros::Time::now();
 
     // Set the namespace and id for this marker.  This serves to create a unique ID
     // Any marker sent with the same namespace and id will overwrite the old one
-    marker.ns = rosbag_marker->ns;//"basic_shapes";
+    marker.ns = "basic_shapes";
     marker.id = index;//rosbag_marker->id;
 
     // Set the marker type.  Initially this is CUBE, and cycles between that and SPHERE, ARROW, and CYLINDER
@@ -103,8 +99,7 @@ void pub_dmp_markers(ros::Publisher &marker_pub, visualization_msgs::Marker::Con
     // Set the marker action.  Options are ADD, DELETE, and new in ROS Indigo: 3 (DELETEALL)
     marker.action = visualization_msgs::Marker::ADD;
 
-    // Try some coordinate transformations:
-    marker.pose.position.x = -marker_position.getX();//rosbag_marker->pose.position.x;//0;
+    marker.pose.position.x = marker_position.getX();//rosbag_marker->pose.position.x;//0;
     marker.pose.position.y = marker_position.getY();//rosbag_marker->pose.position.y;//0;
     marker.pose.position.z = marker_position.getZ();//rosbag_marker->pose.position.z;//0;
     marker.pose.orientation.x = 1;//rosbag_marker->pose.orientation.x;//0.0;
@@ -137,9 +132,9 @@ void pub_dmp_markers(ros::Publisher &marker_pub, visualization_msgs::Marker::Con
       sleep(1.0);
     }
     marker_pub.publish(marker);
-
+    std::cout << index << std::endl;
+    //sleep(1.0);
 }
-
 
 
 
@@ -582,53 +577,68 @@ int main(int argc, char **argv){
 
 
     //MOVE Pr2 To a known Location
-    moveit::planning_interface::MoveGroup group("right_arm");
-    moveit::planning_interface::PlanningSceneInterface planning_scene_interface;  
-    // Getting Basic Information
-    // ^^^^^^^^^^^^^^^^^^^^^^^^^
-    // We can print the name of the reference frame for this robot.
-    ROS_INFO("Reference frame: %s", group.getPlanningFrame().c_str());  
-    // We can also print the name of the end-effector link for this group.
-    ROS_INFO("Reference frame: %s", group.getEndEffectorLink().c_str());
+    // moveit::planning_interface::MoveGroup group("right_arm");
+    // moveit::planning_interface::PlanningSceneInterface planning_scene_interface;  
+    // // Getting Basic Information
+    // // ^^^^^^^^^^^^^^^^^^^^^^^^^
+    // // We can print the name of the reference frame for this robot.
+    // ROS_INFO("Reference frame: %s", group.getPlanningFrame().c_str());  
+    // // We can also print the name of the end-effector link for this group.
+    // ROS_INFO("Reference frame: %s", group.getEndEffectorLink().c_str());
 
-    // Move the robot to a known starting position
-    robot_state::RobotState start_state(*group.getCurrentState());
-    geometry_msgs::Pose start_pose2;
-    start_pose2.orientation.x = 1.0;
-    start_pose2.orientation.y = 0.0; 
-    start_pose2.orientation.z = 0.0;
-    start_pose2.orientation.w = 0.0;
-    start_pose2.position.x = 0.55;//0.55;
-    start_pose2.position.y = -0.55;//-0.05;
-    start_pose2.position.z = 0.8;//0.8;
+    // // Move the robot to a known starting position
+    // robot_state::RobotState start_state(*group.getCurrentState());
+    // geometry_msgs::Pose start_pose2;
+    // start_pose2.orientation.x = 1.0;
+    // start_pose2.orientation.y = 0.0; 
+    // start_pose2.orientation.z = 0.0;
+    // start_pose2.orientation.w = 0.0;
+    // start_pose2.position.x = 0.55;//0.55;
+    // start_pose2.position.y = -0.55;//-0.05;
+    // start_pose2.position.z = 0.8;//0.8;
 
-    const robot_state::JointModelGroup *joint_model_group =
-                  start_state.getJointModelGroup(group.getName());
-    start_state.setFromIK(joint_model_group, start_pose2);
-    group.setStartState(start_state);
+    // const robot_state::JointModelGroup *joint_model_group =
+    //               start_state.getJointModelGroup(group.getName());
+    // start_state.setFromIK(joint_model_group, start_pose2);
+    // group.setStartState(start_state);
 
-    // Now we will plan to the earlier pose target from the new 
-    // start state that we have just created.
-    group.setPoseTarget(start_pose2);
+    // // Now we will plan to the earlier pose target from the new 
+    // // start state that we have just created.
+    // group.setPoseTarget(start_pose2);
 
-    moveit::planning_interface::MoveGroup::Plan my_plan;
-    bool success = group.plan(my_plan);
+    // moveit::planning_interface::MoveGroup::Plan my_plan;
+    // bool success = group.plan(my_plan);
 
-    ROS_INFO("Moving to start position %s",success?"":"FAILED");
-    group.move();
-    /* Sleep to give Rviz time to visualize the plan. */
-    sleep(10.0);
-    // When done with the path constraint be sure to clear it.
-    group.clearPathConstraints();
+    // ROS_INFO("Moving to start position %s",success?"":"FAILED");
+    // group.move();
+    // /* Sleep to give Rviz time to visualize the plan. */
+    // sleep(10.0);
+    // // When done with the path constraint be sure to clear it.
+    // group.clearPathConstraints();
 
+//    tf::Vector3 r_gripper_position(start_pose2.position.x, start_pose2.position.y, start_pose2.position.z);    
+
+    tf::Vector3 r_gripper_position(1,1,1);    
 
     Waypoints_traj converted_des_waypoints;
-    tf::Vector3 r_gripper_position(start_pose2.position.x, start_pose2.position.y, start_pose2.position.z);    
+
     convert_waypoints_to_pr2_axes(des_waypoints, converted_des_waypoints); // all x-values need to be flipped due to working with the kinnect.
 
     tf::Vector3 first_waypoint_vector_offset(converted_des_waypoints.pos[0].getX(), 
                                              converted_des_waypoints.pos[0].getY(), 
                                              converted_des_waypoints.pos[0].getZ());
-    tf::Transform transform_to_main_axis(tf::Quaternion(0,0,0,1), r_gripper_position - first_waypoint_vector_offset); // Create transform
+    tf::Transform translate_to_main_axis(tf::Quaternion(0,0,0,1), r_gripper_position - first_waypoint_vector_offset); // Create translation transform
+    tf::Transform rotate_to_main_axis(tf::Quaternion(0,0,0,1), tf::Vector3(0,0,0)); // Create rotate transform. Don't rotate.    
+
+    // Count number of elements in waypoints 
+    int n_waypoints = 0;
+    for(std::vector<double>::iterator t_i = converted_des_waypoints.time.begin(); t_i != converted_des_waypoints.time.end(); ++t_i) {
+        n_waypoints++;       
+    }    
+    // Plot waypoints in rviz and push them to waypoints:
+    for (std::vector<int>::size_type i = 0; i < n_waypoints; ++i){
+        pub_dmp_markers(rvizMarkerPub, i, n_waypoints, converted_des_waypoints, translate_to_main_axis, rotate_to_main_axis);
+
+    }
 
 }
