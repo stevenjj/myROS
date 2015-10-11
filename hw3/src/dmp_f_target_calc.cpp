@@ -591,7 +591,7 @@ int main(int argc, char **argv){
     Waypoints_traj des_waypoints;
     double dt_des = 0.001;
 
-    double tau_des = reaching_dmp.tau_demo; // Set duration of copying the trajectory    
+    double tau_des = reaching_dmp.tau_demo/2; // Set duration of copying the trajectory    
 
     dmp_planning(tau_des, dt_des, r_gripper_start_pos, r_gripper_goal_pos, reaching_dmp, des_waypoints);
     print_waypoints(des_waypoints);
