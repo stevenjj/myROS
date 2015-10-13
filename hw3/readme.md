@@ -52,5 +52,5 @@ roslaunch hw3 pr2_dmp_execute.launch
 
 
 
-
 rosrun gazebo_ros gazebo
+roslaunch hw3 objects_pr2.launch

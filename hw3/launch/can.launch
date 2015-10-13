@@ -1,0 +1,4 @@
+<launch>
+<node name="spawn_can" pkg="gazebo_ros" type="spawn_model"
+     args="-file $(find hw3)/models/coke_can.sdf -sdf -model coke_can -x 0.67 -y -0.25 -z 1.105 -R 1.57" respawn="false" output="screen" />
+ </launch>
