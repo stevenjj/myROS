@@ -11,6 +11,11 @@
      args="-file $(find hw3)/models/coke_can.sdf -sdf -model coke_can -x 0.67 -y -0.25 -z 1.105 -R 1.57" respawn="false" output="screen" />
  -->
 <node name="spawn_block" pkg="gazebo_ros" type="spawn_model"
-     args="-file $(find hw3)/models/block.sdf -sdf -model block -x 0.57 -y -0.4 -z 1.105" respawn="false" output="screen" />     
+     args="-file $(find hw3)/models/block.sdf -sdf -model block -x 0.6 -y -0.4 -z 1.105" respawn="false" output="screen" />     
      
+
+<node name="block_marker" pkg="hw3" type="block_marker" respawn="false" output="screen">
+  </node>
+
+
  </launch>

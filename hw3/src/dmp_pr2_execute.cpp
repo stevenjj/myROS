@@ -171,79 +171,6 @@ void pub_dmp_markers(ros::Publisher &marker_pub, int index, int total_markers, W
 
 
 
-
-void pub_object_marker(ros::Publisher &marker_pub, int index, int total_markers, Waypoints_traj &des_waypoints,
-                    tf::Transform &translate_to_main, tf::Transform &rotate_to_main){
-
-    tf::Vector3 marker_position (des_waypoints.pos[index].getX(),
-                                 des_waypoints.pos[index].getY(),
-                                 des_waypoints.pos[index].getZ());
-    tf::Quaternion marker_orientation (1, 0, 0, 0);
-
-    //marker_position = marker_position - offset_vector; //transform_to_main * 
-    marker_position = translate_to_main * marker_position; 
-    marker_orientation = rotate_to_main * marker_orientation;
-
-     visualization_msgs::Marker marker;
-//    uint32_t shape = visualization_msgs::Marker::CUBE;
-//    uint32_t shape = visualization_msgs::Marker::SPHERE;
-    uint32_t shape = visualization_msgs::Marker::CUBE;
-
-    // Set the frame ID and timestamp.  See the TF tutorials for information on these.
-    //marker.header.frame_id = "/my_frame";
-    marker.header.frame_id = "/base_link";
-    marker.header.stamp = ros::Time::now();
-
-    // Set the namespace and id for this marker.  This serves to create a unique ID
-    // Any marker sent with the same namespace and id will overwrite the old one
-    marker.ns = "basic_shapes";
-    marker.id = index;//rosbag_marker->id;
-
-    // Set the marker type.  Initially this is CUBE, and cycles between that and SPHERE, ARROW, and CYLINDER
-    marker.type = shape; //rosbag_marker->type; 
-
-    // Set the marker action.  Options are ADD, DELETE, and new in ROS Indigo: 3 (DELETEALL)
-    marker.action = visualization_msgs::Marker::ADD;
-
-    marker.pose.position.x = marker_position.getX();//rosbag_marker->pose.position.x;//0;
-    marker.pose.position.y = marker_position.getY();//rosbag_marker->pose.position.y;//0;
-    marker.pose.position.z = marker_position.getZ();//rosbag_marker->pose.position.z;//0;
-    marker.pose.orientation.x = 1;//rosbag_marker->pose.orientation.x;//0.0;
-    marker.pose.orientation.y = 0;//rosbag_marker->pose.orientation.y;//0.0;
-    marker.pose.orientation.z = 0;//rosbag_marker->pose.orientation.z;//0.0;
-    marker.pose.orientation.w = 0;//rosbag_marker->pose.orientation.w; //1.0;
-
-    // Set the scale of the marker -- 1x1x1 here means 1m on a side
-    marker.scale.x = 0.02;//rosbag_marker->scale.x; //1.0;
-    marker.scale.y = 0.005;//rosbag_marker->scale.y; //1.0;
-    marker.scale.z = 0.005;//rosbag_marker->scale.z; //0.5;
-
-    // Set the color -- be sure to set alpha to something non-zero!
-    marker.color.r = 1.0 *  ( (double)(total_markers - index) / (double)total_markers);//rosbag_marker->color.r; //0.0f;
-    marker.color.g = 1.0f * ( (double)index / (double)total_markers); //1.0f;//rosbag_marker->color.g; //1.0f;
-    marker.color.b = 0.0f;//rosbag_marker->color.b; //0.0f;
-    marker.color.a = 1.0f;//1.0 * ( (double)(total_markers - index) / (double)total_markers); //rosbag_marker->color.a; //1.0;
-
-    marker.lifetime = ros::Duration();
-
-    // Publish the marker
-    while (marker_pub.getNumSubscribers() < 1)
-    {
-      if (!ros::ok())
-      {
-        ROS_WARN_ONCE("NOT OK!");
-        break;
-      }
-      ROS_WARN_ONCE("Please create a subscriber to the marker");
-      sleep(1.0);
-    }
-    marker_pub.publish(marker);
-    std::cout << index << std::endl;
-    //sleep(1.0);
-}
-
-
-
 double getPhase(double alpha, double tau, double t){
     return exp(-alpha/tau*t); //Grab current time and find s    
 }
@@ -654,7 +581,7 @@ void learn_and_plan_dmp_trajectory(DMP_param &reaching_dmp, DEMO_traj &reaching_
     // End of planning DMP trajectory -------------------------------------------------------------------------------------
 }
 
-void learn_and_plan_dmp_trajectory2(DMP_param &reaching_dmp, DEMO_traj &reaching_demo_traj, Waypoints_traj &des_waypoints, const tf::Vector3 &goal_vector){
+void learn_dmp(DMP_param &reaching_dmp, DEMO_traj &reaching_demo_traj){
     // Learn and plan DMP trajectory -------------------------------------------------------------------------------------
     std::string demo_file = DEMO_FILE_NAME;
     int marker_id_to_learn = MARKER_ID_TO_TRACK;
@@ -665,36 +592,20 @@ void learn_and_plan_dmp_trajectory2(DMP_param &reaching_dmp, DEMO_traj &reaching
     double K = K_CONSTANT;
     double D = 2*sqrt(K);
     double alpha = -log(0.01); // selected so that s(t) = exp(-alpha/tau_demo)*t converges to 99% when t = tau_demo        
-    dmp_learning(K, D, alpha, reaching_demo_traj, reaching_dmp); // Learn the dmp of reaching demo
+    dmp_learning(K, D, alpha, reaching_demo_traj, reaching_dmp); // Learn the dmp of reaching demo and store parameters by mutating reaching_dmp
+}
 
+
+// learns a dmp, and plans a dmp for a goal 
+void  plan_dmp_trajectory(DMP_param &dmp_to_use, Waypoints_traj &des_waypoints, const tf::Vector3 &goal_vector){
     // Prep the dmp planning phase
     tf::Vector3 r_gripper_start_pos(0,0,0); //Always 0 since real starting position is set by moveit.
-    // int traj_samples = reaching_demo_traj.n_samples;
-    // double goal_x = reaching_demo_traj.pos[traj_samples-1].getX() - reaching_demo_traj.pos[0].getX()  ;
-    // double goal_y = reaching_demo_traj.pos[traj_samples-1].getY() - reaching_demo_traj.pos[0].getY()  ;
-    // double goal_z = reaching_demo_traj.pos[traj_samples-1].getZ() - reaching_demo_traj.pos[0].getZ()  ;
+    tf::Vector3 r_gripper_goal_pos = goal_vector;    
 
-    // tf::Vector3 task_goal_pos(goal_x, goal_y, goal_z);
-    // tf::Vector3 task_goal_pos = goal_vector;   
-    // tf::Vector3 r_gripper_goal_pos = task_goal_pos + goal_offset_vector;
-     tf::Vector3 r_gripper_goal_pos = goal_vector;    
-
-    // tf::Vector3 r_gripper_goal_pos(-0.164,-0.055,-0.232);
-    //tf::Vector3 r_gripper_goal_pos(goal_x, goal_y, goal_z);    
     double dt_des = 0.5;
-    double tau_des = reaching_dmp.tau_demo; // Set duration of copying the trajectory    
-
-    dmp_planning(tau_des, dt_des, r_gripper_start_pos, r_gripper_goal_pos, reaching_dmp, des_waypoints);
-    //print_waypoints(des_waypoints); // Print DMP learned traj
-
-    // Test DMP
-    // std::vector<tf::Vector3> xyz_waypoints = test_dmp(K, D, reaching_dmp.tau_demo, alpha, reaching_demo_traj.start_pos, 
-    //                                                                                   reaching_demo_traj.goal_pos, 
-    //                                                                                   reaching_dmp.s, 
-    //                                                                                   reaching_dmp.f_s,
-    //                                                                                   reaching_dmp.n_samples,
-    //                                                                                   reaching_demo_traj.time); 
-    // End of planning DMP trajectory -------------------------------------------------------------------------------------
+    double tau_des = dmp_to_use.tau_demo; // Set duration of copying the trajectory    
+    dmp_planning(tau_des, dt_des, r_gripper_start_pos, r_gripper_goal_pos, dmp_to_use, des_waypoints); //mutates des_waypoints
+    print_waypoints(des_waypoints); // Print DMP learned traj    
 }
 
 
@@ -735,20 +646,20 @@ tf::Vector3 get_r_gripper_pos(ros::NodeHandle &n){
     return tf::Vector3(x,y,z); //returns gripper position with the base link as the origin.
 }
 
-tf::Vector3 get_can_pos(ros::NodeHandle &n){
+tf::Vector3 get_object_pos(ros::NodeHandle &n){
     ros::ServiceClient gms_c = n.serviceClient<gazebo_msgs::GetModelState>("/gazebo/get_model_state");
     gazebo_msgs::GetModelState getmodelstate;
 
-    getmodelstate.request.model_name = "coke_can";
+    getmodelstate.request.model_name = "block";
     gms_c.call(getmodelstate);
 
     double x = getmodelstate.response.pose.position.x;
     double y = getmodelstate.response.pose.position.y;
     double z = getmodelstate.response.pose.position.z;
 
-    std::cout << x << std::endl;
-    std::cout << y << std::endl;
-    std::cout << z << std::endl;    
+    // std::cout << x << std::endl;
+    // std::cout << y << std::endl;
+    // std::cout << z << std::endl;    
 
     return tf::Vector3(x,y,z); 
 }
@@ -793,8 +704,40 @@ void reset_object_locations(ros::NodeHandle &n){
     tf::Vector3 table_location(1.028586, -0.778717,0);
     set_table_location(n, table_location);
 
-    tf::Vector3 block_location(0.57, -0.4, 1.125);  
+    tf::Vector3 block_location(0.60, -0.4, 1.125);  
     set_object_location(n, block_location);
+}
+
+
+void move_pr2_to_starting_pos(moveit::planning_interface::MoveGroup &group, geometry_msgs::Pose &start_pose2){
+    // Getting Basic Information
+    // ^^^^^^^^^^^^^^^^^^^^^^^^^
+    // We can print the name of the reference frame for this robot.
+    ROS_INFO("Reference frame: %s", group.getPlanningFrame().c_str());  
+    // We can also print the name of the end-effector link for this group.
+    ROS_INFO("Reference frame: %s", group.getEndEffectorLink().c_str());
+    
+    robot_state::RobotState start_state(*group.getCurrentState());
+
+    const robot_state::JointModelGroup *joint_model_group =
+                  start_state.getJointModelGroup(group.getName());
+    start_state.setFromIK(joint_model_group, start_pose2);
+    group.setStartState(start_state);
+
+    // Now we will plan to the earlier pose target from the new 
+    // start state that we have just created.
+    group.setPoseTarget(start_pose2);
+
+    moveit::planning_interface::MoveGroup::Plan my_plan;
+    bool success = group.plan(my_plan);
+
+    ROS_INFO("Moving to start position %s",success?"":"FAILED");
+    group.move();
+    /* Sleep to give Rviz time to visualize the plan. */
+    sleep(5.0);
+    // When done with the path constraint be sure to clear it.
+    group.clearPathConstraints();
+
 }
 
 int main(int argc, char **argv){
@@ -808,101 +751,59 @@ int main(int argc, char **argv){
     DMP_param reaching_dmp;
     DEMO_traj reaching_demo_traj;
     Waypoints_traj des_waypoints;
-//    tf::Vector3 goal_offset_vector(0.01, 0.01, 0);
-//    learn_and_plan_dmp_trajectory(reaching_dmp, reaching_demo_traj, des_waypoints, goal_offset_vector);
 
 
-    // // Prepare to compute can location 
-    // int traj_samples = reaching_demo_traj.n_samples;
-    // double dmp_goal_x = -(reaching_demo_traj.pos[traj_samples-1].getX() - reaching_demo_traj.pos[0].getX())  ; //must be neg due to correspondence.
-    // double dmp_goal_y = reaching_demo_traj.pos[traj_samples-1].getY() - reaching_demo_traj.pos[0].getY()  ;
-    // double dmp_goal_z = reaching_demo_traj.pos[traj_samples-1].getZ() - reaching_demo_traj.pos[0].getZ()  ;
-    // tf::Vector3 dmp_goal_vector(dmp_goal_x, dmp_goal_y, dmp_goal_z);
-    // tf::Vector3 pr2_base_link_pos(0,0,0.051); //is the height of the base_link from the ground 
-
-    //tf::Vector3 can_location(pr2_base_link_pos + get_r_gripper_pos(n) + dmp_goal_vector + goal_offset_vector);
-
-    // //Set coke_can location.
-    // std::cout << can_location.getX() << std::endl;
-    // std::cout << can_location.getY() << std::endl;
-    // std::cout << can_location.getZ() << std::endl;
-
-    reset_object_locations(n);    
-
-
-
-    //MOVE Pr2 To a known Location
-     moveit::planning_interface::MoveGroup group("right_arm");
-     moveit::planning_interface::PlanningSceneInterface planning_scene_interface;  
-
-    // // Getting Basic Information
-    // // ^^^^^^^^^^^^^^^^^^^^^^^^^
-    // // We can print the name of the reference frame for this robot.
-    // ROS_INFO("Reference frame: %s", group.getPlanningFrame().c_str());  
-    // // We can also print the name of the end-effector link for this group.
-    // ROS_INFO("Reference frame: %s", group.getEndEffectorLink().c_str());
-
-    // // Move the robot to a known starting position
-    // robot_state::RobotState start_state(*group.getCurrentState());
-    // geometry_msgs::Pose start_pose2;
-    // start_pose2.orientation.x = 1.0;
-    // start_pose2.orientation.y = 0.0; 
-    // start_pose2.orientation.z = 0.0;
-    // start_pose2.orientation.w = 0.0;
-    // start_pose2.position.x = 0.50;//0.55;
-    // start_pose2.position.y = -0.1;//-0.05;
-    // start_pose2.position.z = 1.2;//0.8;
-
-    // const robot_state::JointModelGroup *joint_model_group =
-    //               start_state.getJointModelGroup(group.getName());
-    // start_state.setFromIK(joint_model_group, start_pose2);
-    // group.setStartState(start_state);
-
-    // // Now we will plan to the earlier pose target from the new 
-    // // start state that we have just created.
-    // group.setPoseTarget(start_pose2);
-
-    // moveit::planning_interface::MoveGroup::Plan my_plan;
-    // bool success = group.plan(my_plan);
-
-    // ROS_INFO("Moving to start position %s",success?"":"FAILED");
-    // group.move();
-    // /* Sleep to give Rviz time to visualize the plan. */
-    // sleep(10.0);
-    // // When done with the path constraint be sure to clear it.
-    // group.clearPathConstraints();
-
-
-    geometry_msgs::Pose start_pose2;
+    // Initialize Pr2 desired starting pose    
+     geometry_msgs::Pose start_pose2;
     start_pose2.orientation.x = 1.0;
     start_pose2.orientation.y = 0.0; 
     start_pose2.orientation.z = 0.0;
     start_pose2.orientation.w = 0.0;
-    start_pose2.position.x = 0.50;//0.55;
-    start_pose2.position.y = -0.1;//-0.05;
+    start_pose2.position.x = 0.55;//0.55;
+    start_pose2.position.y = -0.15;//-0.05;
     start_pose2.position.z = 1.2;//0.8;
 
 
+
+    reset_object_locations(n);  
+    // Initialize moveit
+    // moveit::planning_interface::MoveGroup group("right_arm");
+    // moveit::planning_interface::PlanningSceneInterface planning_scene_interface;  
+//    move_pr2_to_starting_pos(group, start_pose2);
+      
+
+
+    // group;
+    // start_pose2;
+    // reaching_dmp;
+    // reaching_demo_traj;
+
+    for (std::vector<int>::size_type i_learn = 0; i_learn < 10; ++i_learn){
+
+    }
+
+    // Compute Goal
     tf::Vector3 r_gripper_position(start_pose2.position.x, start_pose2.position.y, start_pose2.position.z);    
+    //tf::Vector3 pr2_base_link_pos(0,0,0.051); //is the initialization of pr2. height offset it seems.
+    tf::Vector3 pr2_base_link_pos(0,0,0.000575); //is the height of the base_link from the ground
+    tf::Vector3 goal_offset_pos(0,0.04125,0.0); //is the offset of marker from the center    
 
+    tf::Vector3 object_pos(0.6, -0.4, 1.105); // Initial Object Position
 
-    tf::Vector3 pr2_base_link_pos(0,0,0.051); //is the height of the base_link from the ground
-    tf::Vector3 goal_offset_pos(0,0,-0.05); //is the height of the base_link from the ground     
-//    tf::Vector3 compute_goal_location(get_can_pos(n) - pr2_base_link_pos - get_r_gripper_pos(n)); //relative position from the gripper.
-    tf::Vector3 compute_goal_location(get_can_pos(n) - pr2_base_link_pos - r_gripper_position + goal_offset_pos); //relative position from the gripper.    
+//    tf::Vector3 compute_goal_location(get_object_pos(n) - pr2_base_link_pos - r_gripper_position + goal_offset_pos); //relative position from the gripper.    
+    tf::Vector3 compute_goal_location(object_pos - pr2_base_link_pos - r_gripper_position + goal_offset_pos); //relative position from the gripper.    
+
     //negate x due to correspondence problem when training the dmp using the kinect and markers.
     //train the dmp. later negate x again to bring back 
     tf::Vector3 compute_dmp_goal( -compute_goal_location.getX(), compute_goal_location.getY(), compute_goal_location.getZ() ); 
-    learn_and_plan_dmp_trajectory2(reaching_dmp, reaching_demo_traj, des_waypoints, compute_dmp_goal);
 
-
-
+    learn_dmp(reaching_dmp, reaching_demo_traj); //Learn a dmp called reaching_dmp  using a reaching_demo_traj
+    // Modify dmp here
+    plan_dmp_trajectory(reaching_dmp, des_waypoints, compute_dmp_goal); // plan a trajectory using a dmp. use dmp_goal as the new goal. mutate des_waypoints.
 
 
     Waypoints_traj converted_des_waypoints;
-
     convert_waypoints_to_pr2_axes(des_waypoints, converted_des_waypoints); // all x-values need to be flipped due to working with the kinnect.
-
     tf::Vector3 first_waypoint_vector_offset(converted_des_waypoints.pos[0].getX(), 
                                              converted_des_waypoints.pos[0].getY(), 
                                              converted_des_waypoints.pos[0].getZ());
@@ -923,119 +824,26 @@ int main(int argc, char **argv){
     }
 
 
+  // // Cartesian Paths
+  // moveit_msgs::RobotTrajectory trajectory;
+  // double fraction = group.computeCartesianPath(right_arm_waypoints,
+  //                                              0.01,  // eef_step
+  //                                              0.0,   // jump_threshold
+  //                                              trajectory);
 
-  // Cartesian Paths
-  // ^^^^^^^^^^^^^^^
-  // You can plan a cartesian path directly by specifying a list of waypoints 
-  // for the end-effector to go through. Note that we are starting 
-  // from the new start state above.  The initial pose (start state) does not
-  // need to be added to the waypoint list.
+  // ROS_INFO("Visualizing plan (cartesian path) (%.2f%% acheived)",
+  //       fraction * 100.0);    
+  // /* Sleep to give Rviz time to visualize the plan. */
 
-  // We want the cartesian path to be interpolated at a resolution of 1 cm
-  // which is why we will specify 0.01 as the max step in cartesian
-  // translation.  We will specify the jump threshold as 0.0, effectively
-  // disabling it.
-  moveit_msgs::RobotTrajectory trajectory;
-  double fraction = group.computeCartesianPath(right_arm_waypoints,
-                                               0.01,  // eef_step
-                                               0.0,   // jump_threshold
-                                               trajectory);
+  // ROS_INFO("Executing plan (cartesian path)");
 
-  ROS_INFO("Visualizing plan (cartesian path) (%.2f%% acheived)",
-        fraction * 100.0);    
-  /* Sleep to give Rviz time to visualize the plan. */
-
-  ROS_INFO("Executing plan (cartesian path)");
-
-  moveit::planning_interface::MoveGroup::Plan plan;
-  plan.trajectory_ = trajectory;
-  group.execute(plan);
+  // moveit::planning_interface::MoveGroup::Plan plan;
+  // plan.trajectory_ = trajectory;
+  // group.execute(plan);
   
   sleep(15.0);
   ros::shutdown();  
 
-// ros::ServiceClient gms_c = n.serviceClient<gazebo_msgs::GetModelState>("/gazebo/get_model_state");
-// gazebo_msgs::GetModelState getmodelstate;
-// getmodelstate.request.model_name = "table_1";
-// gms_c.call(getmodelstate);
 
-
-// //ros::NodeHandle n;
-// geometry_msgs::Pose start_pose;
-// start_pose.position.x = getmodelstate.response.pose.position.x;
-// start_pose.position.y = getmodelstate.response.pose.position.y;
-// start_pose.position.z = can_location.getZ()-TABLE_CAN_Z_DIFF; //getmodelstate.response.pose.position.z;
-// start_pose.orientation.x = 0.0;
-// start_pose.orientation.y = 0.0;
-// start_pose.orientation.z = 0.0;
-// start_pose.orientation.w = 0.0;
-
-// geometry_msgs::Twist start_twist;
-// start_twist.linear.x = 0.0;
-// start_twist.linear.y = 0.0;
-// start_twist.linear.z = 0.0;
-// start_twist.angular.x = 0.0;
-// start_twist.angular.y = 0.0;
-// start_twist.angular.z = 0.0;
-
-// gazebo_msgs::ModelState modelstate;
-// modelstate.model_name = (std::string) "table_1";
-// modelstate.reference_frame = (std::string) "world";
-// modelstate.pose = start_pose;
-// modelstate.twist = start_twist;
-
-// ros::ServiceClient client = n.serviceClient<gazebo_msgs::SetModelState>("/gazebo/set_model_state");
-// gazebo_msgs::SetModelState setmodelstate;
-// setmodelstate.request.model_state = modelstate;
-// client.call(setmodelstate);
-
-
-
-// std::cout << get_can_pos(n).getX() << std::endl;
-// std::cout << get_can_pos(n).getY() << std::endl;
-// std::cout << get_can_pos(n).getZ() << std::endl;
-
-// ros::ServiceClient gms_c = n.serviceClient<gazebo_msgs::GetModelState>("/gazebo/get_model_state");
-// gazebo_msgs::GetModelState getmodelstate;
-
-//getmodelstate.request.model_name = "coke_can";
-// gms_c.call(getmodelstate);
-
-// std::cout << getmodelstate.response.pose.position.x << std::endl;
-// std::cout << getmodelstate.response.pose.position.y << std::endl;
-// std::cout << getmodelstate.response.pose.position.z << std::endl;
-
-
-// ros::ServiceClient gls_c = n.serviceClient<gazebo_msgs::GetLinkState>("/gazebo/get_link_state");
-// gazebo_msgs::GetLinkState getlinkstate;
-
-//  getlinkstate.request.link_name = "pr2::r_gripper_l_finger_tip_link";
-//  gls_c.call(getlinkstate);
-
-//  std::cout << getlinkstate.response.link_state.pose.position.x << std::endl;
-//  std::cout << getlinkstate.response.link_state.pose.position.y << std::endl;
-//  std::cout << getlinkstate.response.link_state.pose.position.z << std::endl;
-
-
-
-// tf::Quaternion q;
-// q.setRPY(1.57,0,0);
-// modelstate.model_name = (std::string) "coke_can";
-// modelstate.reference_frame = (std::string) "world";
-// start_pose.position.x = getmodelstate.response.pose.position.x;
-// start_pose.position.y = getmodelstate.response.pose.position.y;
-// start_pose.position.z = getmodelstate.response.pose.position.z;
-// start_pose.orientation.x = q.getAxis().getX();
-// start_pose.orientation.y = q.getAxis().getY();
-// start_pose.orientation.z = q.getAxis().getZ();
-// start_pose.orientation.w = q.getW();
-// modelstate.pose = start_pose;
-// setmodelstate.request.model_state = modelstate;
-// //modelstate.twist = start_twist;
-// client.call(setmodelstate);
-
-//pr2::r_gripper_l_finger_tip_link
-
-// (0,0,0.051) is the height of the base_link from the ground 
 
 }

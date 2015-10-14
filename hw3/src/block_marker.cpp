@@ -53,14 +53,14 @@ void pub_object_marker(ros::Publisher &marker_pub, ros::NodeHandle &n){
     double q_z = getmodelstate.response.pose.orientation.z;
     double q_w = getmodelstate.response.pose.orientation.w;
 
-
+    double z_offset = 0.000575;
     std::cout << x << std::endl;
     std::cout << y << std::endl;
-    std::cout << z << std::endl;    
+    std::cout << z - z_offset << std::endl;    
 
     marker.pose.position.x = x;//rosbag_marker->pose.position.x;//0;
     marker.pose.position.y = y;//rosbag_marker->pose.position.y;//0;
-    marker.pose.position.z = z;//rosbag_marker->pose.position.z;//0;
+    marker.pose.position.z = z - z_offset;//rosbag_marker->pose.position.z;//0;
     marker.pose.orientation.x = q_x;//rosbag_marker->pose.orientation.x;//0.0;
     marker.pose.orientation.y = q_y;//rosbag_marker->pose.orientation.y;//0.0;
     marker.pose.orientation.z = q_z;//rosbag_marker->pose.orientation.z;//0.0;
@@ -75,7 +75,7 @@ void pub_object_marker(ros::Publisher &marker_pub, ros::NodeHandle &n){
     marker.color.r = 1.0 ; // *  ( (double)(total_markers - index) / (double)total_markers);//rosbag_marker->color.r; //0.0f;
     marker.color.g = 0.0f; // * ( (double)index / (double)total_markers); //1.0f;//rosbag_marker->color.g; //1.0f;
     marker.color.b = 1.0f;//rosbag_marker->color.b; //0.0f;
-    marker.color.a = 1.0f;//1.0 * ( (double)(total_markers - index) / (double)total_markers); //rosbag_marker->color.a; //1.0;
+    marker.color.a = 0.75f;//1.0 * ( (double)(total_markers - index) / (double)total_markers); //rosbag_marker->color.a; //1.0;
 
     marker.lifetime = ros::Duration();
 
@@ -91,7 +91,7 @@ void pub_object_marker(ros::Publisher &marker_pub, ros::NodeHandle &n){
       sleep(1.0);
     }
     marker_pub.publish(marker);
-    std::cout << "success?" << std::endl;
+    // std::cout << "success?" << std::endl;
 }
 
 int main(int argc, char **argv){

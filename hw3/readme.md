@@ -48,9 +48,10 @@ launch sequence:
 roslaunch pr2_gazebo pr2_empty_world.launch 
 rosrun rviz rviz
 
+roslaunch hw3 objects_pr2.launch
 roslaunch hw3 pr2_dmp_execute.launch 
-
-
+rosrun hw3 dmp_pr2_execute
+rosrun hw3 block_marker
 
 rosrun gazebo_ros gazebo
 roslaunch hw3 objects_pr2.launch

@@ -482,5 +482,89 @@ int main(int argc, char **argv){
     bag.close();
 
 
+// ros::ServiceClient gms_c = n.serviceClient<gazebo_msgs::GetModelState>("/gazebo/get_model_state");
+// gazebo_msgs::GetModelState getmodelstate;
+// getmodelstate.request.model_name = "table_1";
+// gms_c.call(getmodelstate);
+
+
+// //ros::NodeHandle n;
+// geometry_msgs::Pose start_pose;
+// start_pose.position.x = getmodelstate.response.pose.position.x;
+// start_pose.position.y = getmodelstate.response.pose.position.y;
+// start_pose.position.z = can_location.getZ()-TABLE_CAN_Z_DIFF; //getmodelstate.response.pose.position.z;
+// start_pose.orientation.x = 0.0;
+// start_pose.orientation.y = 0.0;
+// start_pose.orientation.z = 0.0;
+// start_pose.orientation.w = 0.0;
+
+// geometry_msgs::Twist start_twist;
+// start_twist.linear.x = 0.0;
+// start_twist.linear.y = 0.0;
+// start_twist.linear.z = 0.0;
+// start_twist.angular.x = 0.0;
+// start_twist.angular.y = 0.0;
+// start_twist.angular.z = 0.0;
+
+// gazebo_msgs::ModelState modelstate;
+// modelstate.model_name = (std::string) "table_1";
+// modelstate.reference_frame = (std::string) "world";
+// modelstate.pose = start_pose;
+// modelstate.twist = start_twist;
+
+// ros::ServiceClient client = n.serviceClient<gazebo_msgs::SetModelState>("/gazebo/set_model_state");
+// gazebo_msgs::SetModelState setmodelstate;
+// setmodelstate.request.model_state = modelstate;
+// client.call(setmodelstate);
+
+
+
+// std::cout << get_can_pos(n).getX() << std::endl;
+// std::cout << get_can_pos(n).getY() << std::endl;
+// std::cout << get_can_pos(n).getZ() << std::endl;
+
+// ros::ServiceClient gms_c = n.serviceClient<gazebo_msgs::GetModelState>("/gazebo/get_model_state");
+// gazebo_msgs::GetModelState getmodelstate;
+
+//getmodelstate.request.model_name = "coke_can";
+// gms_c.call(getmodelstate);
+
+// std::cout << getmodelstate.response.pose.position.x << std::endl;
+// std::cout << getmodelstate.response.pose.position.y << std::endl;
+// std::cout << getmodelstate.response.pose.position.z << std::endl;
+
+
+// ros::ServiceClient gls_c = n.serviceClient<gazebo_msgs::GetLinkState>("/gazebo/get_link_state");
+// gazebo_msgs::GetLinkState getlinkstate;
+
+//  getlinkstate.request.link_name = "pr2::r_gripper_l_finger_tip_link";
+//  gls_c.call(getlinkstate);
+
+//  std::cout << getlinkstate.response.link_state.pose.position.x << std::endl;
+//  std::cout << getlinkstate.response.link_state.pose.position.y << std::endl;
+//  std::cout << getlinkstate.response.link_state.pose.position.z << std::endl;
+
+
+
+// tf::Quaternion q;
+// q.setRPY(1.57,0,0);
+// modelstate.model_name = (std::string) "coke_can";
+// modelstate.reference_frame = (std::string) "world";
+// start_pose.position.x = getmodelstate.response.pose.position.x;
+// start_pose.position.y = getmodelstate.response.pose.position.y;
+// start_pose.position.z = getmodelstate.response.pose.position.z;
+// start_pose.orientation.x = q.getAxis().getX();
+// start_pose.orientation.y = q.getAxis().getY();
+// start_pose.orientation.z = q.getAxis().getZ();
+// start_pose.orientation.w = q.getW();
+// modelstate.pose = start_pose;
+// setmodelstate.request.model_state = modelstate;
+// //modelstate.twist = start_twist;
+// client.call(setmodelstate);
+
+//pr2::r_gripper_l_finger_tip_link
+
+// (0,0,0.051) is the height of the base_link from the ground 
+
 
 }
