@@ -86,7 +86,17 @@ struct DEMO_traj{
 struct Waypoints_traj{
     std::vector<double> time;
     std::vector<tf::Vector3> pos;
+
 };
+
+tf::Vector3 pr2_traj_to_dmp_frame(tf::Vector3 vector_pos){
+    return tf::Vector3(vector_pos.getY(), -vector_pos.getZ(), -vector_pos.getX() );
+}
+
+tf::Vector3 dmp_to_pr2_frame(tf::Vector3 vector_pos){
+    return tf::Vector3(-vector_pos.getZ(), vector_pos.getX(), -vector_pos.getY() );
+}
+
 
 double getPhase(double alpha, double tau, double t);
 
@@ -153,6 +163,12 @@ void pub_dmp_markers(ros::Publisher &marker_pub, int index, int total_markers, W
     marker.pose.position.x = marker_position.getX();//rosbag_marker->pose.position.x;//0;
     marker.pose.position.y = marker_position.getY();//rosbag_marker->pose.position.y;//0;
     marker.pose.position.z = marker_position.getZ();//rosbag_marker->pose.position.z;//0;
+
+
+    // marker.pose.position.x = -marker_position.getZ();//rosbag_marker->pose.position.x;//0;
+    // marker.pose.position.y = marker_position.getX();//rosbag_marker->pose.position.y;//0;
+    // marker.pose.position.z = -marker_position.getY();//rosbag_marker->pose.position.z;//0;
+
     marker.pose.orientation.x = 1;//rosbag_marker->pose.orientation.x;//0.0;
     marker.pose.orientation.y = 0;//rosbag_marker->pose.orientation.y;//0.0;
     marker.pose.orientation.z = 0;//rosbag_marker->pose.orientation.z;//0.0;
@@ -408,6 +424,7 @@ void obtain_pos_data_from_bag(std::string file_name, int marker_id_to_learn, DEM
         if (p->id == marker_id){
             // Store marker x,y,z cartesian pose.        
             tf::Vector3 marker_cartesian_pose( p->pose.position.x,  p->pose.position.y,  p->pose.position.z);
+//            tf::Vector3 marker_cartesian_pose( -(p->pose.position.z),  p->pose.position.z, - (p->pose.position.x) ;            
             demo_data.pos.push_back(marker_cartesian_pose);
 
             // Store time variable;
@@ -583,7 +600,7 @@ void learn_and_plan_dmp_trajectory(DMP_param &reaching_dmp, DEMO_traj &reaching_
 
     // tf::Vector3 r_gripper_goal_pos(-0.164,-0.055,-0.232);
     //tf::Vector3 r_gripper_goal_pos(goal_x, goal_y, goal_z);    
-    double dt_des = 0.5;
+    double dt_des = 0.01;
     double tau_des = reaching_dmp.tau_demo; // Set duration of copying the trajectory    
 
     dmp_planning(tau_des, dt_des, r_gripper_start_pos, r_gripper_goal_pos, reaching_dmp, des_waypoints);
@@ -639,8 +656,8 @@ void convert_waypoints_to_pr2_axes(Waypoints_traj &waypoints, Waypoints_traj &pr
     }    
         
     for (std::vector<int>::size_type i = 0; i < n; ++i){
-        // invert X
-        tf::Vector3 pr2_points(-waypoints.pos[i].getX(), waypoints.pos[i].getY(), waypoints.pos[i].getZ());
+        // transform back to pr2 coordinates.       
+        tf::Vector3 pr2_points = dmp_to_pr2_frame(waypoints.pos[i]);
         pr2_waypoints.time.push_back(waypoints.time[i]);
         pr2_waypoints.pos.push_back(pr2_points);        
     }    
@@ -931,11 +948,10 @@ int main(int argc, char **argv){
 
     reset_object_locations(n);  
     //Initialize moveit
-    moveit::planning_interface::MoveGroup group("right_arm");
-    moveit::planning_interface::PlanningSceneInterface planning_scene_interface;  
-    move_pr2_to_starting_pos(group, start_pose2);
+    // moveit::planning_interface::MoveGroup group("right_arm");
+    // moveit::planning_interface::PlanningSceneInterface planning_scene_interface;  
+    // move_pr2_to_starting_pos(group, start_pose2);
       
-
 
     // group;
     // start_pose2;
@@ -949,7 +965,7 @@ int main(int argc, char **argv){
 
     double score = 0;
     double new_score = 0;        
-    for (std::vector<int>::size_type i_learn = 0; i_learn < 3; ++i_learn){
+    for (std::vector<int>::size_type i_learn = 0; i_learn < 10; ++i_learn){
         ROS_INFO("Starting new trial. Iteration #");
         std::cout << i_learn << std::endl;
 
@@ -965,21 +981,22 @@ int main(int argc, char **argv){
         tf::Vector3 goal_offset_pos(0,0.04125,0.0); //is the offset of marker from the center    
 
         tf::Vector3 object_start_pos(0.6, -0.4, 1.105); // Initial Object Position
-        //tf::Vector3 compute_goal_location(object_start_pos - pr2_base_link_pos - r_gripper_position + goal_offset_pos); //relative position from the gripper.    
-        tf::Vector3 compute_goal_location(get_object_pos(n) - pr2_base_link_pos - r_gripper_position + goal_offset_pos); //relative position from the gripper.    
-        
+        tf::Vector3 pr2_goal_location(object_start_pos - pr2_base_link_pos - r_gripper_position + goal_offset_pos); //relative position from the gripper.               
+        //tf::Vector3 pr2_goal_location(get_object_pos(n) - pr2_base_link_pos - r_gripper_position + goal_offset_pos); //relative position from the gripper.    
 
-        //negate x due to correspondence problem when training the dmp using the kinect and markers.
-        //train the dmp. later negate x again to bring back 
-        tf::Vector3 compute_dmp_goal( -compute_goal_location.getX(), compute_goal_location.getY(), compute_goal_location.getZ() ); 
+    
+        // IMPORTANT!! when learning the dmp, convert pr2's frame to the dmp frame.
+        tf::Vector3 compute_dmp_goal = pr2_traj_to_dmp_frame(pr2_goal_location);
 
         learn_dmp(reaching_dmp, reaching_demo_traj); //Learn a dmp called reaching_dmp  using a reaching_demo_traj        
+
         // DO_DMP policy search here.
-        
         if (i_learn == 0){
             try_policy = best_policy;
             candidate_best_dmp.replace_DMP_with(reaching_dmp);
-            dmp_to_try.replace_DMP_with(reaching_dmp);
+            try_policy = policy_search(score, candidate_best_dmp, perturbed_dmp_policy);            
+            dmp_to_try.replace_DMP_with(perturbed_dmp_policy);
+            //dmp_to_try.replace_DMP_with(reaching_dmp);
         } else{
             try_policy = policy_search(score, candidate_best_dmp, perturbed_dmp_policy); // Mutates perturbed_dmp_policy. Stores Policy
             dmp_to_try.replace_DMP_with(perturbed_dmp_policy);
@@ -988,7 +1005,10 @@ int main(int argc, char **argv){
         plan_dmp_trajectory(dmp_to_try, des_waypoints, compute_dmp_goal); // plan a trajectory using a dmp. use dmp_goal as the new goal. mutate des_waypoints.
 
 
-        convert_waypoints_to_pr2_axes(des_waypoints, converted_des_waypoints); // all x-values need to be flipped due to working with the kinnect.
+        // IMPORTANT!! all x-values need to be converted back to pr2_frame due to working with the kinnect
+        convert_waypoints_to_pr2_axes(des_waypoints, converted_des_waypoints); 
+ 
+        // Find the transform to move the points to the gripper
         tf::Vector3 first_waypoint_vector_offset(converted_des_waypoints.pos[0].getX(), converted_des_waypoints.pos[0].getY(), 
                                                                                         converted_des_waypoints.pos[0].getZ());
         tf::Transform translate_to_main_axis(tf::Quaternion(0,0,0,1), r_gripper_position - first_waypoint_vector_offset); // Create translation transform
@@ -999,7 +1019,6 @@ int main(int argc, char **argv){
         for(std::vector<double>::iterator t_i = converted_des_waypoints.time.begin(); t_i != converted_des_waypoints.time.end(); ++t_i) {
             n_waypoints++;       
         }    
-        
         std::vector<geometry_msgs::Pose> right_arm_waypoints;
         // Plot waypoints in rviz and push them to waypoints:
         for (std::vector<int>::size_type i = 0; i < n_waypoints; ++i){
@@ -1008,41 +1027,44 @@ int main(int argc, char **argv){
         }
 
 
-      // Cartesian Paths
-      moveit_msgs::RobotTrajectory trajectory;
-      double fraction = group.computeCartesianPath(right_arm_waypoints,
-                                                   0.01,  // eef_step
-                                                   0.0,   // jump_threshold
-                                                   trajectory);
+    //   // // Cartesian Paths
+    //   // moveit_msgs::RobotTrajectory trajectory;
+    //   // double fraction = group.computeCartesianPath(right_arm_waypoints,
+    //   //                                              0.01,  // eef_step
+    //   //                                              0.0,   // jump_threshold
+    //   //                                              trajectory);
 
-      ROS_INFO("Visualizing plan (cartesian path) (%.2f%% acheived)",
-            fraction * 100.0);    
-      /* Sleep to give Rviz time to visualize the plan. */
+    //   // ROS_INFO("Visualizing plan (cartesian path) (%.2f%% acheived)",
+    //   //       fraction * 100.0);    
+    //   // /* Sleep to give Rviz time to visualize the plan. */
 
-      ROS_INFO("Executing plan (cartesian path)");
+    //   // ROS_INFO("Executing plan (cartesian path)");
 
-      moveit::planning_interface::MoveGroup::Plan plan;
-      plan.trajectory_ = trajectory;
-      group.execute(plan);
+    //   // moveit::planning_interface::MoveGroup::Plan plan;
+    //   // plan.trajectory_ = trajectory;
+    //   // group.execute(plan);
 
-      new_score = abs(object_start_pos.getX() - get_object_pos(n).getX()) + abs(object_start_pos.getY() - get_object_pos(n).getY()) + get_object_pos(n).getZ();  
+    //   new_score = abs(object_start_pos.getX() - get_object_pos(n).getX()) + abs(object_start_pos.getY() - get_object_pos(n).getY()) + get_object_pos(n).getZ();  
 
-      try_policy.push_back(new_score);
-      print_policy_parameters(try_policy);
+    //   try_policy.push_back(new_score);
+    //   print_policy_parameters(try_policy);
         
-      ROS_INFO("This policy's score was ");
-      std::cout << new_score << std::endl;
-      sleep(3);
-      if ((i_learn == 0) || (score < new_score)){
-          ROS_INFO("It's a new better policy!");
-          candidate_best_dmp.replace_DMP_with(dmp_to_try);
-          best_policy = try_policy;
-      }            
+    //   ROS_INFO("This policy's score was ");
+    //   std::cout << new_score << std::endl;
+    //   sleep(3);
+    //   if ((i_learn == 0) || (score < new_score)){
+    //       ROS_INFO("It's a new better policy!");
+    //       candidate_best_dmp.replace_DMP_with(dmp_to_try);
+    //       best_policy = try_policy;
+    //   }            
 
-       move_pr2_to_starting_pos(group, start_pose2);                     
-       reset_object_locations(n);
-       sleep(5);       
+    //    //move_pr2_to_starting_pos(group, start_pose2);                     
+    //    reset_object_locations(n);
+    //    sleep(5);       
     } 
+    ROS_INFO("Finished exploring");    
+    ROS_INFO("Best policy found was");
+    print_policy_parameters(best_policy);
 
 
   
@@ -1052,3 +1074,18 @@ int main(int argc, char **argv){
 
 
 }
+
+
+        // tf::Transform translate_to_main_axis(tf::Quaternion(0,0,0,1), tf::Vector3(0,0,0) ); // Create translation transform
+        // tf::Transform rotate_to_main_axis(tf::Quaternion(0,0,0,1), tf::Vector3(0,0,0)); // Create rotate transform. Don't rotate.    
+
+        // int n_waypoints = 0;
+        // for(std::vector<double>::iterator t_i = des_waypoints.time.begin(); t_i != des_waypoints.time.end(); ++t_i) {
+        //     n_waypoints++;       
+        // }    
+        
+        // std::vector<geometry_msgs::Pose> right_arm_waypoints;
+        // // Plot waypoints in rviz and push them to waypoints:
+        // for (std::vector<int>::size_type i = 0; i < n_waypoints; ++i){
+        //     pub_dmp_markers(rvizMarkerPub, i, n_waypoints, des_waypoints, translate_to_main_axis, rotate_to_main_axis);
+        // }

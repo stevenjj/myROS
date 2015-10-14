@@ -131,6 +131,81 @@ void pub_recorded_marker(ros::Publisher &marker_pub, visualization_msgs::Marker:
 }
 
 
+void pub_dmp_markers(ros::Publisher &marker_pub, int index, int total_markers, Waypoints_traj &des_waypoints,
+                    tf::Transform &translate_to_main, tf::Transform &rotate_to_main){
+
+    tf::Vector3 marker_position (des_waypoints.pos[index].getX(),
+                                 des_waypoints.pos[index].getY(),
+                                 des_waypoints.pos[index].getZ());
+    tf::Quaternion marker_orientation (1, 0, 0, 0);
+
+    //marker_position = marker_position - offset_vector; //transform_to_main * 
+    marker_position = translate_to_main * marker_position; 
+    marker_orientation = rotate_to_main * marker_orientation;
+
+     visualization_msgs::Marker marker;
+//    uint32_t shape = visualization_msgs::Marker::CUBE;
+//    uint32_t shape = visualization_msgs::Marker::SPHERE;
+    uint32_t shape = visualization_msgs::Marker::ARROW;
+
+    // Set the frame ID and timestamp.  See the TF tutorials for information on these.
+    //marker.header.frame_id = "/my_frame";
+    marker.header.frame_id = "/base_link";
+    marker.header.stamp = ros::Time::now();
+
+    // Set the namespace and id for this marker.  This serves to create a unique ID
+    // Any marker sent with the same namespace and id will overwrite the old one
+    marker.ns = "basic_shapes";
+    marker.id = index;//rosbag_marker->id;
+
+    // Set the marker type.  Initially this is CUBE, and cycles between that and SPHERE, ARROW, and CYLINDER
+    marker.type = shape; //rosbag_marker->type; 
+
+    // Set the marker action.  Options are ADD, DELETE, and new in ROS Indigo: 3 (DELETEALL)
+    marker.action = visualization_msgs::Marker::ADD;
+
+    marker.pose.position.x = marker_position.getX();//rosbag_marker->pose.position.x;//0;
+    marker.pose.position.y = marker_position.getY();//rosbag_marker->pose.position.y;//0;
+    marker.pose.position.z = marker_position.getZ();//rosbag_marker->pose.position.z;//0;
+
+    // marker.pose.position.x = -marker_position.getZ();//rosbag_marker->pose.position.x;//0;
+    // marker.pose.position.y = marker_position.getX();//rosbag_marker->pose.position.y;//0;
+    // marker.pose.position.z = -marker_position.getY();//rosbag_marker->pose.position.z;//0;
+
+    marker.pose.orientation.x = 1;//rosbag_marker->pose.orientation.x;//0.0;
+    marker.pose.orientation.y = 0;//rosbag_marker->pose.orientation.y;//0.0;
+    marker.pose.orientation.z = 0;//rosbag_marker->pose.orientation.z;//0.0;
+    marker.pose.orientation.w = 0;//rosbag_marker->pose.orientation.w; //1.0;
+
+    // Set the scale of the marker -- 1x1x1 here means 1m on a side
+    marker.scale.x = 0.02;//rosbag_marker->scale.x; //1.0;
+    marker.scale.y = 0.005;//rosbag_marker->scale.y; //1.0;
+    marker.scale.z = 0.005;//rosbag_marker->scale.z; //0.5;
+
+    // Set the color -- be sure to set alpha to something non-zero!
+    marker.color.r = 1.0 *  ( (double)(total_markers - index) / (double)total_markers);//rosbag_marker->color.r; //0.0f;
+    marker.color.g = 1.0f * ( (double)index / (double)total_markers); //1.0f;//rosbag_marker->color.g; //1.0f;
+    marker.color.b = 0.0f;//rosbag_marker->color.b; //0.0f;
+    marker.color.a = 1.0f;//1.0 * ( (double)(total_markers - index) / (double)total_markers); //rosbag_marker->color.a; //1.0;
+
+    marker.lifetime = ros::Duration();
+
+    // Publish the marker
+    while (marker_pub.getNumSubscribers() < 1)
+    {
+      if (!ros::ok())
+      {
+        ROS_WARN_ONCE("NOT OK!");
+        break;
+      }
+      ROS_WARN_ONCE("Please create a subscriber to the marker");
+      sleep(1.0);
+    }
+    marker_pub.publish(marker);
+    //std::cout << index << std::endl;
+    //sleep(1.0);
+}
+
 
 
 double getPhase(double alpha, double tau, double t){
@@ -562,7 +637,7 @@ int main(int argc, char **argv){
     ros::init (argc, argv, "dmp_f_target_calc");
     ros::NodeHandle n;
     ros::Publisher rvizMarkerPub; 
-    rvizMarkerPub = n.advertise < visualization_msgs::Marker > ("visualization_marker", 1000);
+    rvizMarkerPub = n.advertise < visualization_msgs::Marker > ("visualization_marker", 10000);
 
 
     DMP_param reaching_dmp;
@@ -589,12 +664,12 @@ int main(int argc, char **argv){
 //    tf::Vector3 r_gripper_goal_pos(0.2223,-0.07,0); //Modify this to pr2's starting arm position
 
     Waypoints_traj des_waypoints;
-    double dt_des = 0.001;
+    double dt_des = 0.05;
 
     double tau_des = reaching_dmp.tau_demo/2; // Set duration of copying the trajectory    
 
     dmp_planning(tau_des, dt_des, r_gripper_start_pos, r_gripper_goal_pos, reaching_dmp, des_waypoints);
-    print_waypoints(des_waypoints);
+    //print_waypoints(des_waypoints);
 
     // std::vector<tf::Vector3> xyz_waypoints = generate_waypoints(K, D, tau_des, alpha, r_gripper_start_pos, 
     //                                                                                   r_gripper_goal_pos, 
@@ -611,6 +686,20 @@ int main(int argc, char **argv){
     //                                                                                   reaching_dmp.f_s,
     //                                                                                   reaching_dmp.n_samples,
     //                                                                                   reaching_demo_traj.time); 
+
+    tf::Transform translate_to_main_axis(tf::Quaternion(0,0,0,1), tf::Vector3(0,0,0) ); // Create translation transform
+    tf::Transform rotate_to_main_axis(tf::Quaternion(0,0,0,1), tf::Vector3(0,0,0)); // Create rotate transform. Don't rotate.    
+
+    int n_waypoints = 0;
+    for(std::vector<double>::iterator t_i = des_waypoints.time.begin(); t_i != des_waypoints.time.end(); ++t_i) {
+        n_waypoints++;       
+    }    
+    
+    std::vector<geometry_msgs::Pose> right_arm_waypoints;
+    // Plot waypoints in rviz and push them to waypoints:
+    for (std::vector<int>::size_type i = 0; i < n_waypoints; ++i){
+        pub_dmp_markers(rvizMarkerPub, i, n_waypoints, des_waypoints, translate_to_main_axis, rotate_to_main_axis);
+    }
 
 
 }

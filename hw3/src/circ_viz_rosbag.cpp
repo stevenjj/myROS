@@ -137,9 +137,9 @@ void pub_recorded_marker(ros::Publisher &marker_pub, visualization_msgs::Marker:
     // marker.pose.position.x = -marker_position.getZ();//rosbag_marker->pose.position.z;//0;
 
 
-    marker.pose.position.x = -marker_position.getX();//rosbag_marker->pose.position.x;//0;
-    marker.pose.position.y = marker_position.getY();//rosbag_marker->pose.position.y;//0;
-    marker.pose.position.z = marker_position.getZ();//rosbag_marker->pose.position.z;//0;
+    marker.pose.position.x = -marker_position.getZ();//rosbag_marker->pose.position.x;//0;
+    marker.pose.position.y = marker_position.getX();//rosbag_marker->pose.position.y;//0;
+    marker.pose.position.z = -marker_position.getY();//rosbag_marker->pose.position.z;//0;
     marker.pose.orientation.x = 1;//rosbag_marker->pose.orientation.x;//0.0;
     marker.pose.orientation.y = 0;//rosbag_marker->pose.orientation.y;//0.0;
     marker.pose.orientation.z = 0;//rosbag_marker->pose.orientation.z;//0.0;
