@@ -736,10 +736,12 @@ void set_table_location(ros::NodeHandle &n, tf::Vector3 &table_location){
 }
 
 void reset_object_locations(ros::NodeHandle &n){
+//    tf::Vector3 table_location(1.028586, -0.778717,0);
     tf::Vector3 table_location(1.028586, -0.778717,0);
     set_table_location(n, table_location);
 
-    tf::Vector3 block_location(0.60, -0.4, 1.125);  
+    tf::Vector3 block_location(0.50, -0.4, 1.125);  
+//    tf::Vector3 block_location(0.60, -0.4, 1.125);  
     set_object_location(n, block_location);
 }
 
@@ -821,7 +823,7 @@ double getRandom_percent(){
     return r;    
 }
 
-std::vector<double> policy_search(double score, DMP_param &orig_dmp, DMP_param &perturbed_dmp_policy){
+std::vector<double> policy_search(double score, DMP_param &orig_dmp, DMP_param &perturbed_dmp_policy, tf::Vector3 &goal_offset){
     std::vector<double> policy;
 
     // Copy all of orig_dmp except the f(s)
@@ -851,9 +853,9 @@ std::vector<double> policy_search(double score, DMP_param &orig_dmp, DMP_param &
     double s_y_center = 0.8 + 0.2*getRandom_percent();
     double s_z_center = 0.8 + 0.2*getRandom_percent();        
 
-    double x_delta = 0.25*getRandom_num()*f_s_max[0];
+    double x_delta = 0.45*getRandom_num()*f_s_max[0];
     double y_delta = 0.25*getRandom_num()*f_s_max[1];
-    double z_delta = 0.25*getRandom_num()*f_s_max[2];
+    double z_delta = 0.45*getRandom_num()*f_s_max[2];
 
     for (std::vector<int>::size_type i = 0; i < n; ++i){
         double s_cur = orig_dmp.s[i];        
@@ -875,6 +877,11 @@ std::vector<double> policy_search(double score, DMP_param &orig_dmp, DMP_param &
         perturbed_dmp_policy.f_s.push_back(new_fs);        
         perturbed_dmp_policy.s.push_back(s_cur);
     }            
+    double add_x = 0.01*getRandom_percent();
+    double add_z = 0.01*getRandom_percent();
+
+    goal_offset.setX(goal_offset.getX()+add_x);
+    goal_offset.setZ(goal_offset.getZ()+add_z);
 
     policy.push_back(s_x_center);
     policy.push_back(s_y_center);
@@ -882,6 +889,8 @@ std::vector<double> policy_search(double score, DMP_param &orig_dmp, DMP_param &
     policy.push_back(x_delta);
     policy.push_back(y_delta);
     policy.push_back(z_delta);    
+    policy.push_back(add_x);    
+    policy.push_back(add_z);            
     return policy;                        
 
 }
@@ -894,6 +903,8 @@ void init_policy(std::vector<double> policy){
     policy.push_back(0);    
     policy.push_back(0);
     policy.push_back(0);
+    policy.push_back(0);
+    policy.push_back(0);        
 }
 
 
@@ -916,9 +927,12 @@ void print_policy_parameters(std::vector<double> policy){
     std::cout << "z_delta";
     std::cout << " ";
     std::cout << policy[5] << std::endl;
-    std::cout << "score";
+    std::cout << "add_x";
     std::cout << " ";
     std::cout << policy[6] << std::endl;
+    std::cout << "add_z";
+    std::cout << " ";
+    std::cout << policy[7] << std::endl;    
 }
 
 int main(int argc, char **argv){
@@ -931,7 +945,6 @@ int main(int argc, char **argv){
 
     DMP_param reaching_dmp;
     DEMO_traj reaching_demo_traj;
-//    Waypoints_traj des_waypoints;
 
 
     // Initialize Pr2 desired starting pose    
@@ -948,11 +961,12 @@ int main(int argc, char **argv){
 
     reset_object_locations(n);  
     //Initialize moveit
-    // moveit::planning_interface::MoveGroup group("right_arm");
-    // moveit::planning_interface::PlanningSceneInterface planning_scene_interface;  
-    // move_pr2_to_starting_pos(group, start_pose2);
-      
-
+    moveit::planning_interface::MoveGroup group("right_arm");
+    moveit::planning_interface::PlanningSceneInterface planning_scene_interface;  
+    move_pr2_to_starting_pos(group, start_pose2);
+                 
+    reset_object_locations(n);
+    sleep(5);
     // group;
     // start_pose2;
     // reaching_dmp;
@@ -962,6 +976,9 @@ int main(int argc, char **argv){
     DMP_param dmp_to_try;
     std::vector<double> best_policy;
     init_policy(best_policy);
+
+    tf::Vector3 goal_offset_pos(0,0.04725,0.05); //is the offset of marker from the center    
+
 
     double score = 0;
     double new_score = 0;        
@@ -978,11 +995,10 @@ int main(int argc, char **argv){
         tf::Vector3 r_gripper_position(start_pose2.position.x, start_pose2.position.y, start_pose2.position.z);    
         //tf::Vector3 pr2_base_link_pos(0,0,0.051); //is the initialization of pr2. height offset it seems.
         tf::Vector3 pr2_base_link_pos(0,0,0.000575); //is the height of the base_link from the ground
-        tf::Vector3 goal_offset_pos(0,0.04125,0.0); //is the offset of marker from the center    
 
         tf::Vector3 object_start_pos(0.6, -0.4, 1.105); // Initial Object Position
-        tf::Vector3 pr2_goal_location(object_start_pos - pr2_base_link_pos - r_gripper_position + goal_offset_pos); //relative position from the gripper.               
-        //tf::Vector3 pr2_goal_location(get_object_pos(n) - pr2_base_link_pos - r_gripper_position + goal_offset_pos); //relative position from the gripper.    
+        //tf::Vector3 pr2_goal_location(object_start_pos - pr2_base_link_pos - r_gripper_position + goal_offset_pos); //relative position from the gripper.               
+        tf::Vector3 pr2_goal_location(get_object_pos(n) - pr2_base_link_pos - r_gripper_position + goal_offset_pos); //relative position from the gripper.    
 
     
         // IMPORTANT!! when learning the dmp, convert pr2's frame to the dmp frame.
@@ -994,11 +1010,11 @@ int main(int argc, char **argv){
         if (i_learn == 0){
             try_policy = best_policy;
             candidate_best_dmp.replace_DMP_with(reaching_dmp);
-            try_policy = policy_search(score, candidate_best_dmp, perturbed_dmp_policy);            
+            try_policy = policy_search(score, candidate_best_dmp, perturbed_dmp_policy, goal_offset_pos);            
             dmp_to_try.replace_DMP_with(perturbed_dmp_policy);
             //dmp_to_try.replace_DMP_with(reaching_dmp);
         } else{
-            try_policy = policy_search(score, candidate_best_dmp, perturbed_dmp_policy); // Mutates perturbed_dmp_policy. Stores Policy
+            try_policy = policy_search(score, candidate_best_dmp, perturbed_dmp_policy, goal_offset_pos); // Mutates perturbed_dmp_policy. Stores Policy
             dmp_to_try.replace_DMP_with(perturbed_dmp_policy);
         }
 
@@ -1027,40 +1043,38 @@ int main(int argc, char **argv){
         }
 
 
-    //   // // Cartesian Paths
-    //   // moveit_msgs::RobotTrajectory trajectory;
-    //   // double fraction = group.computeCartesianPath(right_arm_waypoints,
-    //   //                                              0.01,  // eef_step
-    //   //                                              0.0,   // jump_threshold
-    //   //                                              trajectory);
+      // // Cartesian Paths
+      moveit_msgs::RobotTrajectory trajectory;
+      double fraction = group.computeCartesianPath(right_arm_waypoints,
+                                                   0.01,  // eef_step
+                                                   0.0,   // jump_threshold
+                                                   trajectory);
 
-    //   // ROS_INFO("Visualizing plan (cartesian path) (%.2f%% acheived)",
-    //   //       fraction * 100.0);    
-    //   // /* Sleep to give Rviz time to visualize the plan. */
+      ROS_INFO("Visualizing plan (cartesian path) (%.2f%% acheived)",
+            fraction * 100.0);    
+      ROS_INFO("Executing plan (cartesian path)");
+      moveit::planning_interface::MoveGroup::Plan plan;
+      plan.trajectory_ = trajectory;
+      group.execute(plan);
 
-    //   // ROS_INFO("Executing plan (cartesian path)");
 
-    //   // moveit::planning_interface::MoveGroup::Plan plan;
-    //   // plan.trajectory_ = trajectory;
-    //   // group.execute(plan);
+      new_score = abs(object_start_pos.getX() - get_object_pos(n).getX()) + abs(object_start_pos.getY() - get_object_pos(n).getY()) + get_object_pos(n).getZ();  
 
-    //   new_score = abs(object_start_pos.getX() - get_object_pos(n).getX()) + abs(object_start_pos.getY() - get_object_pos(n).getY()) + get_object_pos(n).getZ();  
-
-    //   try_policy.push_back(new_score);
-    //   print_policy_parameters(try_policy);
+      try_policy.push_back(new_score);
+      print_policy_parameters(try_policy);
         
-    //   ROS_INFO("This policy's score was ");
-    //   std::cout << new_score << std::endl;
-    //   sleep(3);
-    //   if ((i_learn == 0) || (score < new_score)){
-    //       ROS_INFO("It's a new better policy!");
-    //       candidate_best_dmp.replace_DMP_with(dmp_to_try);
-    //       best_policy = try_policy;
-    //   }            
+      ROS_INFO("This policy's score was ");
+      std::cout << new_score << std::endl;
+      sleep(3);
+      if ((i_learn == 0) || (score < new_score)){
+          ROS_INFO("It's a new better policy!");
+          candidate_best_dmp.replace_DMP_with(dmp_to_try);
+          best_policy = try_policy;
+      }            
 
-    //    //move_pr2_to_starting_pos(group, start_pose2);                     
-    //    reset_object_locations(n);
-    //    sleep(5);       
+       //move_pr2_to_starting_pos(group, start_pose2);                     
+       reset_object_locations(n);
+       sleep(5);       
     } 
     ROS_INFO("Finished exploring");    
     ROS_INFO("Best policy found was");
