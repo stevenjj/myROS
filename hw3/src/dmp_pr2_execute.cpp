@@ -29,6 +29,7 @@
 #define MARKER_ID_TO_TRACK 4
 #define DEMO_FILE_NAME "/home/stevenjj/catkin_ws/src/hw3/demo_bags/lift_box_4.bag"
 #define K_CONSTANT 500.0
+#define TABLE_CAN_Z_DIFF 1.9328
 
 struct DMP_param{
     double K;
@@ -539,7 +540,7 @@ void dmp_planning(double tau, double dt_des, const tf::Vector3 &start_pos, const
     // }
  }
 
-void learn_and_plan_dmp_trajectory(DMP_param &reaching_dmp, DEMO_traj &reaching_demo_traj, Waypoints_traj &des_waypoints){
+void learn_and_plan_dmp_trajectory(DMP_param &reaching_dmp, DEMO_traj &reaching_demo_traj, Waypoints_traj &des_waypoints, const tf::Vector3 &goal_offset_vector){
     // Learn and plan DMP trajectory -------------------------------------------------------------------------------------
     std::string demo_file = DEMO_FILE_NAME;
     int marker_id_to_learn = MARKER_ID_TO_TRACK;
@@ -553,14 +554,17 @@ void learn_and_plan_dmp_trajectory(DMP_param &reaching_dmp, DEMO_traj &reaching_
     dmp_learning(K, D, alpha, reaching_demo_traj, reaching_dmp); // Learn the dmp of reaching demo
 
     // Prep the dmp planning phase
-    tf::Vector3 r_gripper_start_pos(0,0,0); //Modify this to pr2's starting arm position
+    tf::Vector3 r_gripper_start_pos(0,0,0); //Always 0 since real starting position is set by moveit.
     int traj_samples = reaching_demo_traj.n_samples;
     double goal_x = reaching_demo_traj.pos[traj_samples-1].getX() - reaching_demo_traj.pos[0].getX()  ;
     double goal_y = reaching_demo_traj.pos[traj_samples-1].getY() - reaching_demo_traj.pos[0].getY()  ;
     double goal_z = reaching_demo_traj.pos[traj_samples-1].getZ() - reaching_demo_traj.pos[0].getZ()  ;
 
+    tf::Vector3 task_goal_pos(goal_x, goal_y, goal_z);    
+    tf::Vector3 r_gripper_goal_pos = task_goal_pos + goal_offset_vector;
+
     // tf::Vector3 r_gripper_goal_pos(-0.164,-0.055,-0.232);
-    tf::Vector3 r_gripper_goal_pos(goal_x, goal_y, goal_z);    
+    //tf::Vector3 r_gripper_goal_pos(goal_x, goal_y, goal_z);    
     double dt_des = 0.5;
     double tau_des = reaching_dmp.tau_demo; // Set duration of copying the trajectory    
 
@@ -593,6 +597,77 @@ void convert_waypoints_to_pr2_axes(Waypoints_traj &waypoints, Waypoints_traj &pr
     }    
 }
 
+tf::Vector3 get_r_gripper_pos(ros::NodeHandle &n){
+    ros::ServiceClient gls_c = n.serviceClient<gazebo_msgs::GetLinkState>("/gazebo/get_link_state");
+    gazebo_msgs::GetLinkState getlinkstate;
+
+    getlinkstate.request.link_name = "pr2::r_gripper_l_finger_tip_link";
+    gls_c.call(getlinkstate);
+
+    double x = getlinkstate.response.link_state.pose.position.x;
+    double y = getlinkstate.response.link_state.pose.position.y;
+    double z = getlinkstate.response.link_state.pose.position.z;
+
+    std::cout << x << std::endl;
+    std::cout << y << std::endl;
+    std::cout << z << std::endl;
+
+    return tf::Vector3(x,y,z); //returns gripper position with the base link as the origin.
+}
+
+tf::Vector3 get_can_pos(ros::NodeHandle &n){
+    ros::ServiceClient gms_c = n.serviceClient<gazebo_msgs::GetModelState>("/gazebo/get_model_state");
+    gazebo_msgs::GetModelState getmodelstate;
+
+    getmodelstate.request.model_name = "coke_can";
+    gms_c.call(getmodelstate);
+
+    double x = getmodelstate.response.pose.position.x;
+    double y = getmodelstate.response.pose.position.y;
+    double z = getmodelstate.response.pose.position.z;
+
+    std::cout << x << std::endl;
+    std::cout << y << std::endl;
+    std::cout << z << std::endl;    
+
+    return tf::Vector3(x,y,z); 
+}
+
+void set_can_location(ros::NodeHandle &n, tf::Vector3 &can_location){
+//ros::NodeHandle n;
+    // Set can to be 90 deg
+    tf::Quaternion q;
+    q.setRPY(1.57,0,0);
+    geometry_msgs::Pose start_pose;
+    start_pose.position.x = can_location.getX();
+    start_pose.position.y = can_location.getY();
+    start_pose.position.z = can_location.getZ();
+    start_pose.orientation.x = q.getAxis().getX();
+    start_pose.orientation.y = q.getAxis().getY();
+    start_pose.orientation.z = q.getAxis().getZ();
+    start_pose.orientation.w = q.getW();
+
+    // geometry_msgs::Twist start_twist;
+    // start_twist.linear.x = 0.0;
+    // start_twist.linear.y = 0.0;
+    // start_twist.linear.z = 0.0;
+    // start_twist.angular.x = 0.0;
+    // start_twist.angular.y = 0.0;
+    // start_twist.angular.z = 0.0;
+
+    gazebo_msgs::ModelState modelstate;
+    modelstate.model_name = (std::string) "coke_can";
+    modelstate.reference_frame = (std::string) "world";
+    modelstate.pose = start_pose;
+    //    modelstate.twist = start_twist;
+
+    ros::ServiceClient client = n.serviceClient<gazebo_msgs::SetModelState>("/gazebo/set_model_state");
+    gazebo_msgs::SetModelState setmodelstate;
+    setmodelstate.request.model_state = modelstate;
+    client.call(setmodelstate);
+}
+
+
 
 int main(int argc, char **argv){
     ros::init (argc, argv, "dmp_pr2_execute");
@@ -605,49 +680,70 @@ int main(int argc, char **argv){
     DMP_param reaching_dmp;
     DEMO_traj reaching_demo_traj;
     Waypoints_traj des_waypoints;
-    learn_and_plan_dmp_trajectory(reaching_dmp, reaching_demo_traj, des_waypoints);
+    tf::Vector3 goal_offset_vector(0.01, 0.01, 0);
+    learn_and_plan_dmp_trajectory(reaching_dmp, reaching_demo_traj, des_waypoints, goal_offset_vector);
+
+
+    // Prepare to compute can location 
+    int traj_samples = reaching_demo_traj.n_samples;
+    double dmp_goal_x = -(reaching_demo_traj.pos[traj_samples-1].getX() - reaching_demo_traj.pos[0].getX())  ; //must be neg due to correspondence.
+    double dmp_goal_y = reaching_demo_traj.pos[traj_samples-1].getY() - reaching_demo_traj.pos[0].getY()  ;
+    double dmp_goal_z = reaching_demo_traj.pos[traj_samples-1].getZ() - reaching_demo_traj.pos[0].getZ()  ;
+    tf::Vector3 dmp_goal_vector(dmp_goal_x, dmp_goal_y, dmp_goal_z);
+    tf::Vector3 pr2_base_link_pos(0,0,0.051); //is the height of the base_link from the ground 
+
+    //MOVE Pr2 To a known Location
+     moveit::planning_interface::MoveGroup group("right_arm");
+     moveit::planning_interface::PlanningSceneInterface planning_scene_interface;  
+    // Getting Basic Information
+    // ^^^^^^^^^^^^^^^^^^^^^^^^^
+    // We can print the name of the reference frame for this robot.
+    ROS_INFO("Reference frame: %s", group.getPlanningFrame().c_str());  
+    // We can also print the name of the end-effector link for this group.
+    ROS_INFO("Reference frame: %s", group.getEndEffectorLink().c_str());
+
+    // Move the robot to a known starting position
+    robot_state::RobotState start_state(*group.getCurrentState());
+    geometry_msgs::Pose start_pose2;
+    start_pose2.orientation.x = 1.0;
+    start_pose2.orientation.y = 0.0; 
+    start_pose2.orientation.z = 0.0;
+    start_pose2.orientation.w = 0.0;
+    start_pose2.position.x = 0.50;//0.55;
+    start_pose2.position.y = 0.0;//-0.05;
+    start_pose2.position.z = 1.0;//0.8;
+
+    const robot_state::JointModelGroup *joint_model_group =
+                  start_state.getJointModelGroup(group.getName());
+    start_state.setFromIK(joint_model_group, start_pose2);
+    group.setStartState(start_state);
+
+    // Now we will plan to the earlier pose target from the new 
+    // start state that we have just created.
+    group.setPoseTarget(start_pose2);
+
+    moveit::planning_interface::MoveGroup::Plan my_plan;
+    bool success = group.plan(my_plan);
+
+    ROS_INFO("Moving to start position %s",success?"":"FAILED");
+    group.move();
+    /* Sleep to give Rviz time to visualize the plan. */
+    sleep(10.0);
+    // When done with the path constraint be sure to clear it.
+    group.clearPathConstraints();
 
 
 
-    // //MOVE Pr2 To a known Location
-    //  moveit::planning_interface::MoveGroup group("right_arm");
-    //  moveit::planning_interface::PlanningSceneInterface planning_scene_interface;  
-    // // Getting Basic Information
-    // // ^^^^^^^^^^^^^^^^^^^^^^^^^
-    // // We can print the name of the reference frame for this robot.
-    // ROS_INFO("Reference frame: %s", group.getPlanningFrame().c_str());  
-    // // We can also print the name of the end-effector link for this group.
-    // ROS_INFO("Reference frame: %s", group.getEndEffectorLink().c_str());
+    //Set coke_can location.
+    tf::Vector3 can_location(pr2_base_link_pos + get_r_gripper_pos(n) + dmp_goal_vector + goal_offset_vector);
 
-    // // Move the robot to a known starting position
-    // robot_state::RobotState start_state(*group.getCurrentState());
-    // geometry_msgs::Pose start_pose2;
-    // start_pose2.orientation.x = 1.0;
-    // start_pose2.orientation.y = 0.0; 
-    // start_pose2.orientation.z = 0.0;
-    // start_pose2.orientation.w = 0.0;
-    // start_pose2.position.x = 0.50;//0.55;
-    // start_pose2.position.y = 0.0;//-0.05;
-    // start_pose2.position.z = 1.0;//0.8;
+    std::cout << can_location.getX() << std::endl;
+    std::cout << can_location.getY() << std::endl;
+    std::cout << can_location.getZ() << std::endl;        
 
-    // const robot_state::JointModelGroup *joint_model_group =
-    //               start_state.getJointModelGroup(group.getName());
-    // start_state.setFromIK(joint_model_group, start_pose2);
-    // group.setStartState(start_state);
+//    set_can_location(n, can_location);
 
-    // // Now we will plan to the earlier pose target from the new 
-    // // start state that we have just created.
-    // group.setPoseTarget(start_pose2);
 
-    // moveit::planning_interface::MoveGroup::Plan my_plan;
-    // bool success = group.plan(my_plan);
-
-    // ROS_INFO("Moving to start position %s",success?"":"FAILED");
-    // group.move();
-    // /* Sleep to give Rviz time to visualize the plan. */
-    // sleep(10.0);
-    // // When done with the path constraint be sure to clear it.
-    // group.clearPathConstraints();
 
 //     tf::Vector3 r_gripper_position(start_pose2.position.x, start_pose2.position.y, start_pose2.position.z);    
 // //    tf::Vector3 r_gripper_position(1,1,1);    
@@ -707,12 +803,17 @@ int main(int argc, char **argv){
 //   sleep(15.0);
 //   ros::shutdown();  
 
+ros::ServiceClient gms_c = n.serviceClient<gazebo_msgs::GetModelState>("/gazebo/get_model_state");
+gazebo_msgs::GetModelState getmodelstate;
+getmodelstate.request.model_name = "table_1";
+gms_c.call(getmodelstate);
+
 
 //ros::NodeHandle n;
 geometry_msgs::Pose start_pose;
-start_pose.position.x = 1.0;
-start_pose.position.y = 1.0;
-start_pose.position.z = -0.5;
+start_pose.position.x = getmodelstate.response.pose.position.x;
+start_pose.position.y = getmodelstate.response.pose.position.y;
+start_pose.position.z = can_location.getZ()-TABLE_CAN_Z_DIFF; //getmodelstate.response.pose.position.z;
 start_pose.orientation.x = 0.0;
 start_pose.orientation.y = 0.0;
 start_pose.orientation.z = 0.0;
@@ -737,6 +838,13 @@ gazebo_msgs::SetModelState setmodelstate;
 setmodelstate.request.model_state = modelstate;
 client.call(setmodelstate);
 
+    set_can_location(n, can_location);
+
+
+// std::cout << get_can_pos(n).getX() << std::endl;
+// std::cout << get_can_pos(n).getY() << std::endl;
+// std::cout << get_can_pos(n).getZ() << std::endl;
+
 // ros::ServiceClient gms_c = n.serviceClient<gazebo_msgs::GetModelState>("/gazebo/get_model_state");
 // gazebo_msgs::GetModelState getmodelstate;
 
@@ -748,15 +856,15 @@ client.call(setmodelstate);
 // std::cout << getmodelstate.response.pose.position.z << std::endl;
 
 
-ros::ServiceClient gls_c = n.serviceClient<gazebo_msgs::GetLinkState>("/gazebo/get_link_state");
-gazebo_msgs::GetLinkState getlinkstate;
+// ros::ServiceClient gls_c = n.serviceClient<gazebo_msgs::GetLinkState>("/gazebo/get_link_state");
+// gazebo_msgs::GetLinkState getlinkstate;
 
- getlinkstate.request.link_name = "pr2::r_gripper_l_finger_tip_link";
- gls_c.call(getlinkstate);
+//  getlinkstate.request.link_name = "pr2::r_gripper_l_finger_tip_link";
+//  gls_c.call(getlinkstate);
 
- std::cout << getlinkstate.response.link_state.pose.position.x << std::endl;
- std::cout << getlinkstate.response.link_state.pose.position.y << std::endl;
- std::cout << getlinkstate.response.link_state.pose.position.z << std::endl;
+//  std::cout << getlinkstate.response.link_state.pose.position.x << std::endl;
+//  std::cout << getlinkstate.response.link_state.pose.position.y << std::endl;
+//  std::cout << getlinkstate.response.link_state.pose.position.z << std::endl;
 
 
 
