@@ -53,6 +53,11 @@ add_executable(dmp_pr2_execute src/dmp_pr2_execute.cpp)
 target_link_libraries(dmp_pr2_execute ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 install(TARGETS dmp_pr2_execute DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
+add_executable(block_marker src/block_marker.cpp)
+target_link_libraries(block_marker ${catkin_LIBRARIES} ${Boost_LIBRARIES})
+install(TARGETS block_marker DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+
+
 #add_subdirectory(kinematics)
 #add_subdirectory(planning)
 #add_subdirectory(state_display)
