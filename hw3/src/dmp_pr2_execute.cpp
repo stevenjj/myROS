@@ -680,33 +680,33 @@ tf::Vector3 get_can_pos(ros::NodeHandle &n){
     return tf::Vector3(x,y,z); 
 }
 
-void set_can_location(ros::NodeHandle &n, tf::Vector3 &can_location, double rad){
+void set_object_location(ros::NodeHandle &n, tf::Vector3 &can_location){
 //ros::NodeHandle n;
     // Set can to be 90 deg
-    tf::Quaternion q;
-    q.setRPY(rad,0,0);
+//    tf::Quaternion q;
+//    q.setRPY(1.57,0,0);
     geometry_msgs::Pose start_pose;
     start_pose.position.x = can_location.getX();
     start_pose.position.y = can_location.getY();
     start_pose.position.z = can_location.getZ();
-    start_pose.orientation.x = q.getAxis().getX();
-    start_pose.orientation.y = q.getAxis().getY();
-    start_pose.orientation.z = q.getAxis().getZ();
-    start_pose.orientation.w = q.getW();
+    // start_pose.orientation.x = q.getAxis().getX();
+    // start_pose.orientation.y = q.getAxis().getY();
+    // start_pose.orientation.z = q.getAxis().getZ();
+    // start_pose.orientation.w = q.getW();
 
-    geometry_msgs::Twist start_twist;
-    start_twist.linear.x = 0.0;
-    start_twist.linear.y = 0.0;
-    start_twist.linear.z = 0.0;
-    start_twist.angular.x = 0.0;
-    start_twist.angular.y = 0.0;
-    start_twist.angular.z = 0.0;
+    // geometry_msgs::Twist start_twist;
+    // start_twist.linear.x = 0.0;
+    // start_twist.linear.y = 0.0;
+    // start_twist.linear.z = 0.0;
+    // start_twist.angular.x = 0.0;
+    // start_twist.angular.y = 0.0;
+    // start_twist.angular.z = 0.0;
 
     gazebo_msgs::ModelState modelstate;
-    modelstate.model_name = (std::string) "coke_can";
+    modelstate.model_name = (std::string) "block";
     modelstate.reference_frame = (std::string) "world";
     modelstate.pose = start_pose;
-    modelstate.twist = start_twist;
+    // modelstate.twist = start_twist;
 
     ros::ServiceClient client = n.serviceClient<gazebo_msgs::SetModelState>("/gazebo/set_model_state");
     gazebo_msgs::SetModelState setmodelstate;
@@ -765,11 +765,12 @@ int main(int argc, char **argv){
     // std::cout << can_location.getZ() << std::endl;
 
     tf::Vector3 table_location(1.028586, -0.778717,0);
+    set_table_location(n, table_location);
 
-    tf::Vector3 can_location(0.67, -0.25, 1.125);  
-    set_can_location(n, can_location, 0.85);
+    tf::Vector3 block_location(0.57, -0.4, 1.125);  
+    set_object_location(n, block_location);
 
-    //set_table_location(n, table_location);
+    
 
     //MOVE Pr2 To a known Location
      moveit::planning_interface::MoveGroup group("right_arm");
@@ -818,9 +819,10 @@ int main(int argc, char **argv){
     tf::Vector3 r_gripper_position(start_pose2.position.x, start_pose2.position.y, start_pose2.position.z);    
 
 
-    tf::Vector3 pr2_base_link_pos(0,0,0.051); //is the height of the base_link from the ground 
+    tf::Vector3 pr2_base_link_pos(0,0,0.051); //is the height of the base_link from the ground
+    tf::Vector3 goal_offset_pos(0,0,-0.05); //is the height of the base_link from the ground     
 //    tf::Vector3 compute_goal_location(get_can_pos(n) - pr2_base_link_pos - get_r_gripper_pos(n)); //relative position from the gripper.
-    tf::Vector3 compute_goal_location(get_can_pos(n) - pr2_base_link_pos - r_gripper_position); //relative position from the gripper.    
+    tf::Vector3 compute_goal_location(get_can_pos(n) - pr2_base_link_pos - r_gripper_position + goal_offset_pos); //relative position from the gripper.    
     //negate x due to correspondence problem when training the dmp using the kinect and markers.
     //train the dmp. later negate x again to bring back 
     tf::Vector3 compute_dmp_goal( -compute_goal_location.getX(), compute_goal_location.getY(), compute_goal_location.getZ() ); 
