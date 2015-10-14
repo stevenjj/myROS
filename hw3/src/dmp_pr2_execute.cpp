@@ -750,7 +750,44 @@ double gaussian(double x, double height, double center,double variance){
     return height*a*exp(- ( pow((x-center),2) / (2*variance) ) ); 
 }
 
+std::vector<double> max_elements(int n, std::vector<tf::Vector3> f_s){
+    std::vector<double> max_vector;
+    double x_max_candidate = f_s[0].getX();
+    double y_max_candidate = f_s[0].getY();
+    double z_max_candidate = f_s[0].getZ();
+        for (std::vector<int>::size_type i = 0; i < n; ++i){
+            if (x_max_candidate < f_s[i].getX()){
+                x_max_candidate = f_s[i].getX();
+            }
+            if (y_max_candidate < f_s[i].getY()){
+                y_max_candidate = f_s[i].getY();
+            }
+            if (z_max_candidate < f_s[i].getZ()){
+                z_max_candidate = f_s[i].getZ();
+            }                        
+        }
+    max_vector.push_back(x_max_candidate);
+    max_vector.push_back(y_max_candidate);    
+    max_vector.push_back(z_max_candidate);
+    return max_vector;
+}
+
+double getRandom_num(){
+    // Random number generator where r is -1 < r < 1;
+    std::srand(time(NULL));
+    double r = 2*(((double) rand() / (RAND_MAX)) - 0.5);
+    return r;    
+}
+
+double getRandom_percent(){
+    // Random number generator where r is -1 < r < 1;
+    std::srand(time(NULL));
+    double r = ((double) rand() / (RAND_MAX));
+    return r;    
+}
+
 void policy_search(double score, DMP_param &orig_dmp, DMP_param &perturbed_dmp_policy){
+
 
     // Copy all of orig_dmp except the f(s)
     perturbed_dmp_policy.K = orig_dmp.K;
@@ -771,49 +808,32 @@ void policy_search(double score, DMP_param &orig_dmp, DMP_param &perturbed_dmp_p
         n++;       
     }    
 
-    // for (std::vector<int>::size_type i = 0; i < n; ++i){
-    //     std::cout << orig_dmp.s[i] ;
-    //     std::cout << " ";
-    //     std::cout << orig_dmp.f_s[i].getX();
-    //     std::cout << " ";
-    //     std::cout << orig_dmp.f_s[i].getY();
-    //     std::cout << " ";
-    //     std::cout << orig_dmp.f_s[i].getZ() << std::endl;                        
-    // }
-
+    std::vector<double> f_s_max = max_elements(n, orig_dmp.f_s);
 
     double height = 1.0;
     double variance = 0.02;
-    double s_center = 0.5;
-   
+    double s_x_center = 0.8 + 0.2*getRandom_percent();
+    double s_y_center = 0.8 + 0.2*getRandom_percent();
+    double s_z_center = 0.8 + 0.2*getRandom_percent();        
+
     for (std::vector<int>::size_type i = 0; i < n; ++i){
-        double s_cur = orig_dmp.s[i];
-        perturbed_dmp_policy.s.push_back(s_cur);
+        double s_cur = orig_dmp.s[i];        
+        double fs_x = orig_dmp.f_s[i].getX() + 0.25*getRandom_num()*f_s_max[0]*(gaussian(s_cur, height, s_x_center, variance)/gaussian(s_x_center, height, s_x_center, variance));                
+        double fs_y = orig_dmp.f_s[i].getY() + 0.25*getRandom_num()*f_s_max[1]*(gaussian(s_cur, height, s_y_center, variance)/gaussian(s_y_center, height, s_y_center, variance));        
+        double fs_z = orig_dmp.f_s[i].getZ() + 0.25*getRandom_num()*f_s_max[2]*(gaussian(s_cur, height, s_z_center, variance)/gaussian(s_z_center, height, s_z_center, variance));
 
-        double fs_x = orig_dmp.f_s[i].getX() + gaussian(s_cur, height, s_center, variance);
-        double fs_y = orig_dmp.f_s[i].getY() + gaussian(s_cur, height, s_center, variance);        
-        double fs_z = orig_dmp.f_s[i].getZ() + gaussian(s_cur, height, s_center, variance);
+        // std::cout << s_cur ;
+        // std::cout << " ";
+        // std::cout << fs_x;
+        // std::cout << " ";
+        // std::cout << fs_y;
+        // std::cout << " ";
+        // std::cout << fs_z << std::endl; 
 
-        std::cout << s_cur ;
-        std::cout << " ";
-        std::cout << fs_x;
-        std::cout << " ";
-        std::cout << fs_y;
-        std::cout << " ";
-        std::cout << fs_z << std::endl; 
-
-        tf::Vector3 new_fs(fs_x, fs_y, fs_z);
+        tf::Vector3 new_fs(fs_x, fs_y, fs_z);        
         perturbed_dmp_policy.f_s.push_back(new_fs);        
-
+        perturbed_dmp_policy.s.push_back(s_cur);
     }            
-    // double x = 0.0;
-    // double dx = 0.01;
-    // int iters = (int) (1.0/dx);
-    // for (std::vector<int>::size_type j = 0; j < iters; ++j){
-      
-    //     gaussian(x, height, center, variance);
-    //     x += dx;
-    // }
 
 }
 
@@ -854,12 +874,15 @@ int main(int argc, char **argv){
     // start_pose2;
     // reaching_dmp;
     // reaching_demo_traj;
-
+    
+    double score = 0;
     for (std::vector<int>::size_type i_learn = 0; i_learn < 1; ++i_learn){
         Waypoints_traj des_waypoints; // Create new des_waypoints
         Waypoints_traj converted_des_waypoints;
         DMP_param perturbed_dmp_policy;
 
+
+        policy_search(score, reaching_dmp, perturbed_dmp_policy); // Mutates perturbed_dmp_policy.
 
                 // Compute Goal
         tf::Vector3 r_gripper_position(start_pose2.position.x, start_pose2.position.y, start_pose2.position.z);    
@@ -867,9 +890,9 @@ int main(int argc, char **argv){
         tf::Vector3 pr2_base_link_pos(0,0,0.000575); //is the height of the base_link from the ground
         tf::Vector3 goal_offset_pos(0,0.04125,0.0); //is the offset of marker from the center    
 
-        tf::Vector3 object_pos(0.6, -0.4, 1.105); // Initial Object Position
+        tf::Vector3 object_start_pos(0.6, -0.4, 1.105); // Initial Object Position
     //    tf::Vector3 compute_goal_location(get_object_pos(n) - pr2_base_link_pos - r_gripper_position + goal_offset_pos); //relative position from the gripper.    
-        tf::Vector3 compute_goal_location(object_pos - pr2_base_link_pos - r_gripper_position + goal_offset_pos); //relative position from the gripper.    
+        tf::Vector3 compute_goal_location(object_start_pos - pr2_base_link_pos - r_gripper_position + goal_offset_pos); //relative position from the gripper.    
 
         //negate x due to correspondence problem when training the dmp using the kinect and markers.
         //train the dmp. later negate x again to bring back 
@@ -879,9 +902,6 @@ int main(int argc, char **argv){
         // DO_DMP policy search here.
 
         plan_dmp_trajectory(reaching_dmp, des_waypoints, compute_dmp_goal); // plan a trajectory using a dmp. use dmp_goal as the new goal. mutate des_waypoints.
-
-        double score = 0;
-        policy_search(score, reaching_dmp, perturbed_dmp_policy); // Mutates perturbed_dmp_policy.
 
 
         convert_waypoints_to_pr2_axes(des_waypoints, converted_des_waypoints); // all x-values need to be flipped due to working with the kinnect.
@@ -903,6 +923,7 @@ int main(int argc, char **argv){
             create_pr2_waypoints(i, converted_des_waypoints, right_arm_waypoints, translate_to_main_axis, rotate_to_main_axis);
         }
 
+        score = object_start_pos.getX() - get_object_pos.getX();  
 
       // // Cartesian Paths
       // moveit_msgs::RobotTrajectory trajectory;
