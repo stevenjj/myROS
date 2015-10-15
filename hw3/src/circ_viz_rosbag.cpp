@@ -85,7 +85,7 @@ void pub_recorded_marker_old(ros::Publisher &marker_pub, visualization_msgs::Mar
 
 
 void pub_recorded_marker(ros::Publisher &marker_pub, visualization_msgs::Marker::ConstPtr &rosbag_marker, 
-                         int index, int total_markers, tf::Transform &translate_to_main, tf::Transform &rotate_to_main ){
+                         int index, int total_markers, tf::Transform &translate_to_main, tf::Transform &rotate_to_main, int id ){
 
     tf::Vector3 marker_position (rosbag_marker->pose.position.x,
                                  rosbag_marker->pose.position.y,
@@ -103,8 +103,10 @@ void pub_recorded_marker(ros::Publisher &marker_pub, visualization_msgs::Marker:
      visualization_msgs::Marker marker;
 //    uint32_t shape = visualization_msgs::Marker::CUBE;
 //    uint32_t shape = visualization_msgs::Marker::SPHERE;
-    uint32_t shape = visualization_msgs::Marker::ARROW;
-
+        uint32_t shape = visualization_msgs::Marker::ARROW;
+     if (id == 6){
+        shape = visualization_msgs::Marker::CUBE;        
+    }
     // Set the frame ID and timestamp.  See the TF tutorials for information on these.
     //marker.header.frame_id = "/my_frame";
     marker.header.frame_id = "/base_link";
@@ -113,7 +115,12 @@ void pub_recorded_marker(ros::Publisher &marker_pub, visualization_msgs::Marker:
     // Set the namespace and id for this marker.  This serves to create a unique ID
     // Any marker sent with the same namespace and id will overwrite the old one
     marker.ns = rosbag_marker->ns;//"basic_shapes";
+    
     marker.id = index;//rosbag_marker->id;
+
+     if (id == 6){
+        marker.id = index+500;        
+    }
 
     // Set the marker type.  Initially this is CUBE, and cycles between that and SPHERE, ARROW, and CYLINDER
     marker.type = shape; //rosbag_marker->type; 
@@ -140,12 +147,12 @@ void pub_recorded_marker(ros::Publisher &marker_pub, visualization_msgs::Marker:
     marker.pose.position.x = -marker_position.getZ();//rosbag_marker->pose.position.x;//0;
     marker.pose.position.y = marker_position.getX();//rosbag_marker->pose.position.y;//0;
     marker.pose.position.z = -marker_position.getY();//rosbag_marker->pose.position.z;//0;
+
+
     marker.pose.orientation.x = 1;//rosbag_marker->pose.orientation.x;//0.0;
     marker.pose.orientation.y = 0;//rosbag_marker->pose.orientation.y;//0.0;
     marker.pose.orientation.z = 0;//rosbag_marker->pose.orientation.z;//0.0;
     marker.pose.orientation.w = 0;//rosbag_marker->pose.orientation.w; //1.0;
-
-
 
     // Set the scale of the marker -- 1x1x1 here means 1m on a side
     marker.scale.x = 0.02;//rosbag_marker->scale.x; //1.0;
@@ -157,6 +164,26 @@ void pub_recorded_marker(ros::Publisher &marker_pub, visualization_msgs::Marker:
     marker.color.g = 1.0f * ( (double)index / (double)total_markers); //1.0f;//rosbag_marker->color.g; //1.0f;
     marker.color.b = 0.0f;//rosbag_marker->color.b; //0.0f;
     marker.color.a = 1.0f;//1.0 * ( (double)(total_markers - index) / (double)total_markers); //rosbag_marker->color.a; //1.0;
+    if (id == 6){
+        marker.pose.orientation.x = 1;//rosbag_marker->pose.orientation.x;//0.0;
+        marker.pose.orientation.y = 0;//rosbag_marker->pose.orientation.y;//0.0;
+        marker.pose.orientation.z = 0;//rosbag_marker->pose.orientation.z;//0.0;
+        marker.pose.orientation.w = 0;//rosbag_marker->pose.orientation.w; //1.0;
+        // Set the scale of the marker -- 1x1x1 here means 1m on a side
+        marker.scale.x = 0.1;//rosbag_marker->scale.x; //1.0;
+        marker.scale.y = 0.1;//rosbag_marker->scale.y; //1.0;
+        marker.scale.z = 0.1;//rosbag_marker->scale.z; //0.5;
+    // Set the color -- be sure to set alpha to something non-zero!
+    marker.color.r = 0.0; //*  ( (double)(total_markers - index) / (double)total_markers);//rosbag_marker->color.r; //0.0f;
+    marker.color.g = 0.0;//f * ( (double)index / (double)total_markers); //1.0f;//rosbag_marker->color.g; //1.0f;
+    marker.color.b = 1.0;//rosbag_marker->color.b; //0.0f;
+    marker.color.a = 0.02f;//1.0 * ( (double)(total_markers - index) / (double)total_markers); //rosbag_marker->color.a; //1.0;        
+    }
+
+
+    
+
+ 
 
     marker.lifetime = ros::Duration();
 
@@ -172,7 +199,7 @@ void pub_recorded_marker(ros::Publisher &marker_pub, visualization_msgs::Marker:
       sleep(1.0);
     }
     marker_pub.publish(marker);
-    sleep(1.0);
+    //sleep(1.0);
 }
 
 
@@ -242,7 +269,7 @@ int main(int argc, char **argv){
         ROS_INFO("Inside bag!");
         //geometry_msgs::Pose::ConstPtr p = m.instantiate<geometry_msgs::Pose>();
         visualization_msgs::Marker::ConstPtr p = m.instantiate<visualization_msgs::Marker>();
-        if (p-> id == marker_id_to_viz){
+
             std::cout << m.getDataType() << std::endl; // Identify topic type
             std::cout << p->id << std::endl;
             std::cout << p->pose.position.x << std::endl;
@@ -253,9 +280,10 @@ int main(int argc, char **argv){
             std::cout << p->pose.orientation.z << std::endl;
             std::cout << p->pose.orientation.w << std::endl;
 
-            pub_recorded_marker(rvizMarkerPub, p, marker_index, total_markers, transform_to_main_axis, rotate_to_main_axis);
+            pub_recorded_marker(rvizMarkerPub, p, marker_index, total_markers, transform_to_main_axis, rotate_to_main_axis, p->id);
+       if (p-> id == marker_id_to_viz){            
             marker_index++;
-        }
+       }
         //sleep(1.0);
         std::cout << total_markers << std::endl;
     }
