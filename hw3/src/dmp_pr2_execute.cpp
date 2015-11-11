@@ -1015,8 +1015,9 @@ int main(int argc, char **argv){
     tf::Vector3 demo_offset;
     demo_offset = obtain_demo_object_start_pos(DEMO_FILE_NAME , MARKER_ID_TO_REORIENT, reaching_demo_traj);
 
-     tf::Vector3 goal_offset_pos(-0.05,0.04725,0.1); //goal offset    
-//    tf::Vector3 goal_offset_pos(0,0.04725,demo_offset.getZ()); 
+     tf::Vector3 goal_offset_pos(-0.05,0.06225,demo_offset.getZ()-.03); //goal offset    
+//     tf::Vector3 goal_offset_pos(-0.05,0.06725,demo_offset.getZ()-.03); //goal offset    
+//    tf::Vector3 goal_offset_pos(-0.05,0.04725,demo_offset.getZ()); 
 
     double score = 0;
     double new_score = 0;        
