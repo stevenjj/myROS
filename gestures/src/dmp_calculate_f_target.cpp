@@ -278,15 +278,19 @@ std::vector<tf::Vector3> generate_waypoints(double K, double D, double tau, doub
     return h;
 }
 
-int main(int argc, char **argv){
+//int main(int argc, char **argv){
+int main(int argc, char *argv[]){
     ros::init (argc, argv, "dmp_f_target_calc");
     ros::NodeHandle n;
     ros::Publisher rvizMarkerPub; 
     rvizMarkerPub = n.advertise < visualization_msgs::Marker > ("visualization_marker", 1000);
 
+    std::string file_name(argv[1]);
+//    std::cout << file_name << std::endl; 
 //    ROS_INFO("Opening Bag");
     rosbag::Bag bag;    
-    bag.open("bag_files/LL_to_UR8.bag", rosbag::bagmode::Read);
+    bag.open(file_name, rosbag::bagmode::Read);
+//    bag.open("bag_files/come_3.bag", rosbag::bagmode::Read);
     std::vector<std::string> topics;
     topics.push_back(std::string("/visualization_marker")); //Specify topic to read
     rosbag::View view(bag, rosbag::TopicQuery(topics));
