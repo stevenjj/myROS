@@ -286,7 +286,7 @@ int main(int argc, char **argv){
 
 //    ROS_INFO("Opening Bag");
     rosbag::Bag bag;    
-    bag.open("bag_files/LR_lowerWave.bag", rosbag::bagmode::Read);
+    bag.open("bag_files/LL_to_UR8.bag", rosbag::bagmode::Read);
     std::vector<std::string> topics;
     topics.push_back(std::string("/visualization_marker")); //Specify topic to read
     rosbag::View view(bag, rosbag::TopicQuery(topics));
@@ -401,13 +401,16 @@ int main(int argc, char **argv){
                                                                                       demo_t); 
 
 
-
-
-
-        std::cout << "t s fx fy fz" << std::endl;
+        std::cout << "t x y z s fx fy fz" << std::endl;
     for (std::vector<int>::size_type i = 0; i < n_samples-1; ++i){
         std::cout << demo_t[i];
         std::cout << " ";
+        std::cout << demo_pos[i].getX();
+        std::cout << " ";
+        std::cout << demo_pos[i].getY();
+        std::cout << " ";
+        std::cout << demo_pos[i].getZ();
+        std::cout << " ";                
         std::cout << phase_s[i];
         std::cout << " ";        
         std::cout << f_target_s[i].getX();

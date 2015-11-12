@@ -211,7 +211,7 @@ int main(int argc, char **argv){
 
     ROS_INFO("Opening Bag");
     rosbag::Bag bag;    
-    bag.open("bag_files/LR_lowerWave.bag", rosbag::bagmode::Read);
+    bag.open("bag_files/wave_1.bag", rosbag::bagmode::Read);
     std::vector<std::string> topics;
     topics.push_back(std::string("/visualization_marker")); //Specify topic to read
     rosbag::View view(bag, rosbag::TopicQuery(topics));
