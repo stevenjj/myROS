@@ -147,6 +147,10 @@ target_link_libraries(viz_rosbag ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 install(TARGETS viz_rosbag DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
 
+add_executable(dmp_calculate_f_target src/dmp_calculate_f_target.cpp)
+target_link_libraries(dmp_calculate_f_target ${catkin_LIBRARIES} ${Boost_LIBRARIES})
+install(TARGETS dmp_calculate_f_target DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+
 
 
 #############
