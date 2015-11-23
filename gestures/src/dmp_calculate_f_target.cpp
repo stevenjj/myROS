@@ -405,7 +405,7 @@ int main(int argc, char *argv[]){
                                                                                       demo_t); 
 
 
-        std::cout << "t x y z s fx fy fz" << std::endl;
+        std::cout << "t x y z s fx fy fz dx dy dz ddx ddy ddz" << std::endl;
     for (std::vector<int>::size_type i = 0; i < n_samples-1; ++i){
         std::cout << demo_t[i];
         std::cout << " ";
@@ -421,8 +421,19 @@ int main(int argc, char *argv[]){
         std::cout << " ";
         std::cout << f_target_s[i].getY();
         std::cout << " ";
-        std::cout << f_target_s[i].getZ() << std::endl;
-
+        std::cout << f_target_s[i].getZ();
+        std::cout << " ";
+        std::cout << demo_vel[i].getX();
+        std::cout << " ";
+        std::cout << demo_vel[i].getY();
+        std::cout << " ";
+        std::cout << demo_vel[i].getZ();
+        std::cout << " ";
+        std::cout << demo_acel[i].getX();
+        std::cout << " ";
+        std::cout << demo_acel[i].getY();        
+        std::cout << " ";
+        std::cout << demo_acel[i].getZ() << std::endl;
     }
 
 
