@@ -12,9 +12,15 @@ rosrun rviz rviz
 
 Then load visualize_markers.rviz
 
-navigate to gesture stack then:
+navigate to catkin_ws/src/gesture stack then:
 
 rosrun gestures dmp_calculate_f_target 'bag_files/LL_to_UR28.bag' > text.txt
 rosrun gestures dmp_calculate_f_target 'bag_files2/circle_8.bag' > 'bag_files2/txt_files/circle_8.txt'
 
 Change the bag file name and the output text file as desired.
+
+To see the current marker pose:
+rostopic echo /visualization_marker 
+
+To record marker pose as a rosbag:
+rosbag record /visualization_marker
